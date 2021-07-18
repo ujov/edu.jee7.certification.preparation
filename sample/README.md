@@ -1,3 +1,98 @@
+# 1Z0-900 - JEE 7 Professional Preparation
+
+Sources:
+
+* [Oracle JEE 7 Tutorial](https://docs.oracle.com/javaee/7/tutorial/index.html)
+* [Java EE Essentials by Arun-Gupta](https://www.amazon.de/Java-EE-Essentials-Arun-Gupta/dp/1449370179)
+
+## Servlets 
+
+Coding examples `sample-servlet`
+Sources:
+* [Java Servlet Technology] (https://docs.oracle.com/javaee/7/tutorial/servlets.htm#BNAFD)
+
+### Servlet Lifecycle
+
+The lifecycle of a servlet is controlled by the container in which the servlet has been deployed. When a request is mapped to a servlet, the container performs the following steps.
+
+* If an instance of the servlet does not exist, the web container:
+    * Loads the servlet class
+    * Creates an instance of the servlet class
+    * Initializes the servlet instance by calling the init method (initialization is covered in Creating and Initializing a Servlet)
+* The container invokes the service method, passing request and response objects. Service methods are discussed in Writing Service Methods.
+
+### Handling Servlet Lifecycle Events
+
+<table border="1">
+<tr>
+<th>Object</th>
+<th>Event</th>
+<th> Listener Interface and Event Class</th>
+</tr>
+<tr>
+<td>Web context </td>
+<td>Initialization and destruction </td>
+<td>javax.servlet.ServletContextListener and ServletContextEvent</td>
+</tr>
+<tr>
+<td>Web context </td>
+<td>Attribute added, removed, or replaced</td>
+<td>javax.servlet.ServletRequestListener and</td>
+</tr>
+<tr>
+<td>Session</td>
+<td>Creation, invalidation, activation, passivation, and timeout</td>
+<td>javax.servlet.http.HttpSessionListener, javax.servlet.http.HttpSessionActivationListener, and HttpSessionEvent</td>
+</tr>
+<tr>
+<td>Session</td>
+<td>Attribute added, removed, or replaced</td>
+<td>javax.servlet.http.HttpSessionAttributeListener and HttpSessionBindingEvent</td>
+</tr>
+<tr>
+<td>Request</td>
+<td>A servlet request has started being processed by web component</td>
+<td>javax.servlet.ServletRequestListener and ServletRequestEvent</td>
+</tr>
+<tr>
+<td>Request</td>
+<td>Attribute added, removed, or replaced</td>
+<td>javax.servlet.ServletRequestAttributeListener and ServletRequestAttributeEvent</td>
+</tr>
+</table>
+
+Just implement one of the above interfaces with `@WebListner` annotation.  
+
+### WebServlet
+
+```java
+@WebServlet(urlPatterns = {"/account", "/accountNg"}, initParams = {@WebInitParam(name=AccountServlet.PARAMTER_ACCOUNT_NUMBER, value="1")})
+public class AccountServlet extends HttpServlet {
+```
+
+* Annotation vs. servlet declaration in the deployment desciptor (`web.xml`). 
+
+```xml
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+         http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
+         version="3.1"
+         metadata-complete="true">
+    <servlet>
+        <servlet-name>AccountServlet</servlet-name>
+        <servlet-class>jee7.certification.perparation.sample.servlets.AccountServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>account</servlet-name>
+        <url-pattern>/*</url-pattern>
+    </servlet-mapping>
+</web-app>
+```
+
+The `metadata-complete` element defines that annotations in the class are not processed. 
+
+
 sample: Example Using Multiple Java EE 7 Technologies Deployed as an EAR
 ==============================================================================================
 Author: Pete Muir

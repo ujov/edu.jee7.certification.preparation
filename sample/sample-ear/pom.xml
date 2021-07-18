@@ -47,6 +47,11 @@
             <artifactId>sample-web</artifactId>
             <type>war</type>
         </dependency>
+		<dependency>
+            <groupId>jee7.certification.preparation</groupId>
+            <artifactId>sample-servlet</artifactId>
+            <type>war</type>
+        </dependency>
         <dependency>
             <groupId>jee7.certification.preparation</groupId>
             <artifactId>sample-ejb</artifactId>

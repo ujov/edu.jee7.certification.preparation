@@ -35,6 +35,7 @@
     <modules>
         <module>sample-ejb</module>
         <module>sample-web</module>
+        <module>sample-servlet</module>
         <module>sample-ear</module>
     </modules>
 
@@ -83,6 +84,14 @@
             <dependency>
                 <groupId>jee7.certification.preparation</groupId>
                 <artifactId>sample-web</artifactId>
+                <version>${project.version}</version>
+                <type>war</type>
+                <scope>compile</scope>
+            </dependency>
+            
+             <dependency>
+                <groupId>jee7.certification.preparation</groupId>
+                <artifactId>sample-servlet</artifactId>
                 <version>${project.version}</version>
                 <type>war</type>
                 <scope>compile</scope>
