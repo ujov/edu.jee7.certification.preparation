@@ -93,6 +93,27 @@ public class AccountServlet extends HttpServlet {
 The `metadata-complete` element defines that annotations in the class are not processed. 
 
 
+### Servlet Filer 
+
+Servlet filter may be used to update the request and response payload. There are three ways to define a filter:
+
+1. By annotation `@WebFilter("/*")`. It's possible to use `@WebInitParameter` here as well.
+2. Using `<filter>` and `<filter-mapping>` in the deployment descriptor. 
+3. Programmatically using `ServletContext.addFiler`
+
+```java 
+public class Initializer implements ServletContainerInitializer {
+
+	@Override
+	public void onStartup(Set<Class<?>> c, ServletContext ctx) throws ServletException {
+		FilterRegistration.Dynamic reg = ctx.addFilter(ResponseLoggingFilter.class.getSimpleName(), ResponseLoggingFilter.class.getName());
+		reg.addMappingForUrlPatterns(null, false, "/*");
+	}
+}
+```
+
+Requires `services/javax.servlet.ServletContainerInitializer` file under `META-INF`.
+
 sample: Example Using Multiple Java EE 7 Technologies Deployed as an EAR
 ==============================================================================================
 Author: Pete Muir
