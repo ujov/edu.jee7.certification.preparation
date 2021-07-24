@@ -114,6 +114,12 @@ public class Initializer implements ServletContainerInitializer {
 
 Requires `services/javax.servlet.ServletContainerInitializer` file under `META-INF`.
 
+### Asynchronous Support
+
+Returns the thread to the container.
+
+
+
 sample: Example Using Multiple Java EE 7 Technologies Deployed as an EAR
 ==============================================================================================
 Author: Pete Muir

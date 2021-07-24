@@ -16,14 +16,14 @@
  */
 package jee7.certification.preparation.sample.data;
 
-import javax.annotation.PostConstruct;
+import java.util.List;
+
 import javax.enterprise.context.RequestScoped;
 import javax.enterprise.event.Observes;
 import javax.enterprise.event.Reception;
 import javax.enterprise.inject.Produces;
 import javax.inject.Inject;
 import javax.inject.Named;
-import java.util.List;
 
 import jee7.certification.preparation.sample.model.Member;
 
@@ -47,7 +47,7 @@ public class MemberListProducer {
         retrieveAllMembersOrderedByName();
     }
 
-    @PostConstruct
+   // @PostConstruct
     public void retrieveAllMembersOrderedByName() {
         members = memberRepository.findAllOrderedByName();
     }
