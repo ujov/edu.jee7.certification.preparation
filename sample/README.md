@@ -118,6 +118,378 @@ Requires `services/javax.servlet.ServletContainerInitializer` file under `META-I
 
 Returns the thread to the container.
 
+```java
+@WebServlet(urlPatterns = "/async", asyncSupported = true)
+public class AsyncServlet extends HttpServlet {
+
+protected void doGet(HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
+		AsyncContext asyncContext = req.startAsync();
+		asyncContext.addListener(new AsyncListener() {
+
+			@Override
+			public void onComplete(AsyncEvent event) throws IOException {
+				LOG.info(String.format("onComplete %s", event));
+				resp.getWriter().append("req completed");
+			}
+
+			@Override
+			public void onTimeout(AsyncEvent event) throws IOException {
+				// TODO Auto-generated method stub
+			}
+
+			@Override
+			public void onError(AsyncEvent event) throws IOException {
+				// TODO Auto-generated method stub
+			}
+
+			@Override
+			public void onStartAsync(AsyncEvent event) throws IOException {
+				LOG.info(String.format("onStartAsync %s", event));
+			}
+		});
+
+		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(10);
+		executor.execute(new AsyncService(asyncContext));
+	}
+
+```
+
+### Nonblocking I/O
+
+Servlet 3.1 achieves nonblocking I/O by introducing two new interfaces: `ReadListener` and `WriteListener`.
+
+Invoking setXXXListner methods indicates hat monblocking I/O is used instead of traditional. 
+
+```java 
+final AsyncContext asyncContext = req.startAsync();
+	ServletInputStream inputStream = req.getInputStream();
+	inputStream.setReadListener(new ReadListener() {
+		
+		@Override
+		public void onError(Throwable t) {
+			// TODO Auto-generated method stub
+
+		}
+		
+		@Override
+		public void onDataAvailable() throws IOException {
+			//read input stream
+		}
+		
+		@Override
+		public void onAllDataRead() throws IOException {
+			asyncContext.complete();
+			
+		}
+	});
+```
+
+### Web Fragments
+
+Applications can be broken down into various modules, now the web fragments allows us to modularize the deployment descriptors as well. 
+In META-INF directory. 
+
+`web-fragment.xml` can use define relative order `<ordering>` whereas the `web.xml` can define `<absolute-ordering>`. 
+The two orders are mutually exclusive, and absolute ordering overrides relative.  If  `metadata-complete` set to true `true`, then `web-fragment.xml` is not processed. 
+
+If neither `web.xml` nor `web-fragment.xml` have order elements, the resources are assumed to not have any ordering dependency. 
+
+### Security  
+
+Via Annotation or `web.xml`. 
+
+```java 
+@ServletSecurity(value = @HttpConstraint(rolesAllowed = { "R1" }), httpMethodConstraints = {
+		@HttpMethodConstraint(value = "GET", rolesAllowed = "*"),
+		@HttpMethodConstraint(value = "POST", rolesAllowed = "R2") })
+```
+
+* `@ServletSecurity` is used to specify security constrains for all methods
+* `@HttpConstraint` for all methods
+* `@HttpMethodConstraint` method specific 
+* `rolesAllowed = "*"` is equivalent to an empty assignment and means that there is no restriction.   
+
+The security constrains can also be specified using the `<security-constrains>` element in the `web.xml`. 
+
+```xml
+<security-constraint>
+    <web-resource-collection>
+        <web-resource-name>wholesale</web-resource-name>
+        <url-pattern>/acme/wholesale/*</url-pattern>
+        <http-method>GET</http-method>
+        <http-method>POST</http-method>
+    </web-resource-collection>
+    <auth-constraint>
+        <role-name>PARTNER</role-name>
+    </auth-constraint>
+    <user-data-constraint>
+        <transport-guarantee>CONFIDENTIAL</transport-guarantee>
+    </user-data-constraint>
+<\security-constraint>
+```
+
+All other methods than GET and POST are unprotected. If HTTP methods are not enumerated within a security-constraint, the protection apply to the complete set of HTTP methods. 
+
+```xml
+<security-constraint>
+    <web-resource-collection>
+        <web-resource-name>wholesale</web-resource-name>
+        <url-pattern>/acme/wholesale/*</url-pattern>
+    </web-resource-collection>
+    ...
+<\security-constraint>
+```
+
+So all methods are protected. Servlet 3.1 defines HTTP methods that are not listed in the `<security-constraint>` as uncovered. `<http-method-omission>` can be used to define methods that are not protected. 
+
+```xml
+<security-constraint>
+    <web-resource-collection>
+        <url-pattern>/acme/wholesale/*</url-pattern>
+        <http-method-omission>GET</http-method-omission>
+    </web-resource-collection>
+    ...
+<\security-constraint>
+```
+
+All other methods than GET are protected.
+The `<deny-uncovered-http-methods>` can be used used to deny an HTTP methods request for uncovered HTTP method. 
+
+
+## JavaServer Faces 
+
+## RESTful Web Services 
+
+### Resouces 
+
+Defintion via `@Path` Annotation. `@PathParam` to bind template parameter. 
+
+```
+@ApplicationPath("api")
+public class ApplicationConfig extends Application {
+
+}
+```
+
+`@QueryParam` can be used to map request parameters. 
+
+`@Suspended` can be used to define an aysnc response. The return type is `void`.
+
+`CompletionCallback` and `ConectionCallback` Listener can be registered. 
+
+
+### Bind HTTP Methods  
+
+`@GET`, `@POST`, `@PUT`, `@DELETE`, `@HEAD` and `@OPTIONS`.
+
+`@FormParam` can be used to bind the value of an HTML form parameter to a resource method or a field. 
+
+`@Produces` (Accept Header) and `@Consumes` (Content-Type Header).
+
+`@HEAD` is typically to `@GET` without content. 
+
+HTTP OPTIONS method request the communications options available on the request/response identified by the URI. 
+Without annotation the JAX-RS runtime generates an automatic response.  
+
+### Multiple Resource Representation
+
+```java 
+@Produces({ "application/json", "application/xml" })	
+```
+
+The exact return type is determined by the HTTP Accept Header in the request. Wildcards are allowed.  
+
+```java 
+@Produces({ "application/*" })	
+```
+If a client requests with no preference for a particular representation or with Accept Header `application/*` qs ("quality on server") can be used to chose the correct representation.    
+
+### Binding a Request to a Resource
+
+`@PathParam`
+`@QueryParam`
+`@CookieParam`
+`@HeaderParam`
+`@FormParam`
+`@MatrixParam` (http://127.0.0.1:8080/sample-rest/api/orders;start=400;end=70)
+
+For more details the `@Context` annotation can be used. 
+For example: 
+
+`@Context Application app;`
+`@Context UriInfo uri;`
+`@Context HttpHeaders headers;`
+`@Context Request request;`
+`@Context SecurityContext security;`
+`@Context Providers providers;`
+
+### Entity Providers
+
+`@Provider` annotation and the implementation of `MessageBodyWriter` (to produce) or `MessageBodyReader` (to consume) can be used to provide a own mapping. 
+
+### Mapping Exceptions 
+
+`@Provider` annotation and the implementation of `ExceptionMapper
+
+### Filters and Entity Interceptors
+
+`ClientRequestFilter`
+`ClientResponseFilter`
+`ContainerRequestFilter`
+`ContainerResponseFilter`
+
+```java 
+client.register(ClientLoggingFilter.class) // client side registration  
+```
+
+```java 
+@Provider // server side registration
+ServerLoggingFilter implements ContainerRequestFilter
+```
+An server side registration alternative is via the `Application`.
+
+`ContainerRequestFilter` can be pre-match and post-match. Pre-match filter is applied globally (`@PreMatching`). On the server side the filter can be registered in four different ways: 
+
+* Globally-bound to all resources and all methods in them 
+* Globally-bound to all resources and all methods in them via the meta-annotation @NameBinding
+* Statically bound to a specific resource/method via the meta-annotation @NameBinding  
+* Dynamically bound to a specific resource/method via DynaicFeature.   
+
+`@Priority` ~ lowest number means highest order
+
+`ReaderInterceptor` and `WriterInterceptor` are mainly concerned with marshaling of HTTP-Message Bodies. 
+
+### Client API 
+
+```java 
+			Client client = ClientBuilder.newClient();
+			client.target("http://127.0.0.1:8080/sample-rest/api/orders").request(MediaType.APPLICATION_JSON)
+					.post(Entity.entity(new Order(-1), MediaType.APPLICATION_JSON), Order.class);
+```
+### Validation of Resources 
+
+`@Valid` can be used to trigger a validation. 
+
+
+## SOAP-Based Web Services 
+
+## JSON Processing 
+
+JSON Processing in JSR 353, goals:
+
+* Produce/consume JSON text 
+* Build a Java object model for text
+
+### Streaming API
+
+#### Consuming JSON Using the Streaming API 
+
+```Java 
+JsonParser parser = Json.createParser(new StringReader("{}"));
+
+enum Event {
+    /**
+     * Start of a JSON array. The position of the parser is after '['.
+     */
+    START_ARRAY,
+    /**
+     * Start of a JSON object. The position of the parser is after '{'.
+     */
+    START_OBJECT,
+    /**
+     * Name in a name/value pair of a JSON object. The position of the parser
+     * is after the key name. The method {@link #getString} returns the key
+     * name.
+     */
+    KEY_NAME,
+    /**
+     * String value in a JSON array or object. The position of the parser is
+     * after the string value. The method {@link #getString}
+     * returns the string value.
+     */
+    VALUE_STRING,
+    /**
+     * Number value in a JSON array or object. The position of the parser is
+     * after the number value. {@code JsonParser} provides the following
+     * methods to access the number value: {@link #getInt},
+     * {@link #getLong}, and {@link #getBigDecimal}.
+     */
+    VALUE_NUMBER,
+    /**
+     * {@code true} value in a JSON array or object. The position of the
+     * parser is after the {@code true} value. 
+     */
+    VALUE_TRUE,
+    /**
+     * {@code false} value in a JSON array or object. The position of the
+     * parser is after the {@code false} value.
+     */
+    VALUE_FALSE,
+    /**
+     * {@code null} value in a JSON array or object. The position of the
+     * parser is after the {@code null} value.
+     */
+    VALUE_NULL,
+    /**
+     * End of a JSON object. The position of the parser is after '}'.
+     */
+    END_OBJECT,
+    /**
+     * End of a JSON array. The position of the parser is after ']'.
+     */
+    END_ARRAY
+}
+```
+#### Producing JSON Using the Streaming API 
+
+```Java 
+		// #### Producing JSON Using the Streaming API
+		JsonGeneratorFactory createGeneratorFactory = Json.createGeneratorFactory(null);
+		JsonGenerator createGenerator = createGeneratorFactory.createGenerator(System.out);
+		createGenerator.writeStartObject().write("title", "The Matrix").write("year", "1999").writeStartArray("cast")
+				.write("Keanu Reeves").write("Laurence Fishburne").writeEnd().writeEnd().close();
+
+		// {"title":"The Matrix","year":"1999","cast":["Keanu Reeves","Laurence
+		// Fishburne"]}
+```
+
+
+### Object Model API
+
+Needs more memory than the streaming api. 
+
+#### Consuming JSON Using the Object Model API 
+
+```Java 
+		// Consuming JSON Using the Object Model API
+
+		JsonReader createReader = Json.createReader(new StringReader("{\"apple\":\"red\"}"));
+		JsonObject readObject = createReader.readObject();
+		String value = readObject.getString("apple");
+		System.out.println(value); // --> red
+```
+
+#### Producing JSON Using the Object Model API
+
+```Java 
+// Producing JSON Using the Object Model API
+
+		JsonBuilderFactory createBuilderFactory = Json.createBuilderFactory(null);
+		JsonArrayBuilder createArrayBuilder = createBuilderFactory.createArrayBuilder();
+		JsonObjectBuilder createObjectBuilder = createBuilderFactory.createObjectBuilder();
+
+		JsonObject jsonObject = createObjectBuilder.add("apple", "red").build();
+		JsonWriter createWriter = Json.createWriter(System.out);
+		createWriter.writeObject(jsonObject);
+		createWriter.close();
+
+		JsonArray jsonArray = createArrayBuilder.add(Json.createObjectBuilder().add("apple", "red"))
+				.add(Json.createObjectBuilder().add("banana", "yellow")).build();
+		
+		createWriter = Json.createWriter(System.out);
+		createWriter.writeArray(jsonArray);
+		createWriter.close();
+```
 
 
 sample: Example Using Multiple Java EE 7 Technologies Deployed as an EAR

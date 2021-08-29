@@ -6,7 +6,9 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import javax.servlet.AsyncContext;
 import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
+import javax.servlet.ReadListener;
 import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -21,38 +23,59 @@ import jee7.certification.perparation.sample.servlet.service.AsyncService;
 public class AsyncServlet extends HttpServlet {
 
 	private static final long serialVersionUID = 1L;
-	
-	private static final Logger LOG = LogManager.getLogger(AsyncServlet.class); 
+
+	private static final Logger LOG = LogManager.getLogger(AsyncServlet.class);
 
 	protected void doGet(HttpServletRequest req, final HttpServletResponse resp) throws ServletException, IOException {
-//		AsyncContext asyncContext = req.startAsync();
-//		asyncContext.addListener(new AsyncListener() {
-//
-//			@Override
-//			public void onComplete(AsyncEvent event) throws IOException {
-//				LOG.info(String.format("onComplete %s", event));
-//				resp.getWriter().append("req completed");
-//			}
-//
-//			@Override
-//			public void onTimeout(AsyncEvent event) throws IOException {
-//				// TODO Auto-generated method stub
-//				
-//			}
-//
-//			@Override
-//			public void onError(AsyncEvent event) throws IOException {
-//				// TODO Auto-generated method stub
-//				
-//			}
-//
-//			@Override
-//			public void onStartAsync(AsyncEvent event) throws IOException {
-//				LOG.info(String.format("onStartAsync %s", event));
-//			}
-//		});
-//		
-//		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(10);
-//		executor.execute(new AsyncService(asyncContext));
+		final AsyncContext asyncContext = req.startAsync();
+		ServletInputStream inputStream = req.getInputStream();
+		inputStream.setReadListener(new ReadListener() {
+			
+			@Override
+			public void onError(Throwable t) {
+				// TODO Auto-generated method stub
+				
+			}
+			
+			@Override
+			public void onDataAvailable() throws IOException {
+				//read input stream
+			}
+			
+			@Override
+			public void onAllDataRead() throws IOException {
+				asyncContext.complete();
+				
+			}
+		});
+		
+		asyncContext.addListener(new AsyncListener() {
+
+			@Override
+			public void onComplete(AsyncEvent event) throws IOException {
+				LOG.info(String.format("onComplete %s", event));
+				resp.getWriter().append("req completed");
+			}
+
+			@Override
+			public void onTimeout(AsyncEvent event) throws IOException {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void onError(AsyncEvent event) throws IOException {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void onStartAsync(AsyncEvent event) throws IOException {
+				LOG.info(String.format("onStartAsync %s", event));
+			}
+		});
+
+		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(10);
+		executor.execute(new AsyncService(asyncContext));
 	}
 }
