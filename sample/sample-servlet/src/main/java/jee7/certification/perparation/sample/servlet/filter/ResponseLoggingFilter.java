@@ -10,12 +10,14 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.annotation.WebFilter;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 
 @WebFilter
 public class ResponseLoggingFilter implements Filter {
 
-	private static final Logger LOG = Logger.getLogger(ResponseLoggingFilter.class);
+	private static final Logger LOG = LogManager.getLogger(ResponseLoggingFilter.class);
 
 	
 	@Override
