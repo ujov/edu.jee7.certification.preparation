@@ -491,6 +491,196 @@ Needs more memory than the streaming api.
 		createWriter.close();
 ```
 
+## WebSocket
+
+WebSockets provides a full-duplex and bidirectional communication protocol over a single TCP connection. Full-duplex means a client and server can send messages independent from each other. Bidirectional means a client can send a message to the server and vice versa.
+
+The Java API for WebSockets defines a standard API for building WebSocket applications and will provide support for: 
+
+* Creating a WebSocket client and server endpoint using annotations and an interface
+* creating and consuming WebSocket text, binary, and control messages 
+* initiating and intercepting WebSocket life-cycle events 
+* configuring and managing WebSocktes sessions, like timeouts, retries, cookies, and connection pooling
+* specifying how the WebSocket application will work within the java ee security model 
+
+### Annotated Server Endpoint
+
+```Java
+@ServerEndpoint(value = "/chat")
+public class ChatServer {
+	
+	public String receiveMessage(String message) {
+		return String.format("Response to %s", message);
+	}
+}
+```
+
+The annotated class must have a public no-arg constructor. The annotation can the following attributes: 
+* value ~ required, URI or URI template where the endpoint will be deployed
+* encoders ~ optional ordered array of encoders 
+* decoders ~ optional ordered array of decoders  
+* subprotocols ~ optional ordered array of WebSocket protocols supported by the endpoint
+* configurator ~ optional custom configurator
+
+`@OnMessage` ~ the message can process text, binary, and pong messages.
+
+
+```Java
+public void processPong(PongMessage pong) {
+	...
+}
+```
+
+`@PathParam`s can be used
+
+```Java
+@ServerEndpoint(value = "/chat/{room}")
+public class ChatServer {
+	
+	public String receiveMessage(String message, @PathParam("room") String room) {
+		...
+	}
+}
+```
+
+An optional Session parameter can be used. 
+
+```Java	
+public void receiveMessage(String message, Session session) {
+	session.getBasicRemote().sendText(...);
+}
+```
+
+The `maxMessageSize` attribute may be used to define the maximum size of the message in bytes. 
+
+```Java
+@Message(maxMessageSize=6)	
+public void receiveMessage(String message) {
+
+}
+``` 
+
+An optional configurator can be used to specify a custom configurator. 
+
+```Java	
+public class MyConfigurator extends ServerEndpointConfig.Configurator {
+
+	public void modifyHandshake(ServerEndpointConfig sec, HandshakeRequest request, HandshakeResponse response) {
+		//...
+	}
+	
+}
+
+@ServerEndpoint(value="/webstocket", configurator = MyConfigurator.class)
+public class MyEndpoint {
+
+}
+```
+
+* @OnOpen ~ optional Session parameter
+* @OnClose ~ `CloseReason` parameter 
+* @OnError ~ `Throwable` parameter 
+
+* full dependency injection is available 
+* the WebSocket annotation behaviors are not passed down!! --> they applay only to the java class on which they are marked
+
+### Programmatic Server Endpoint
+
+A WebSocket can be created by extending the the `Endpoint` class. 
+
+```Java	
+public class MyProgmmaticEndpoint extends Endpoint {
+
+	@Override
+	public void onOpen(Session session, EndpointConfig config) {
+
+		session.addMessageHandler(new MessageHandler.Whole<String>() {
+
+			@Override
+			public void onMessage(String message) {
+
+				Future<Void> sendText = session.getAsyncRemote().sendText(message);
+			}
+		});
+	}
+}
+```
+
+* a response can be send synchronously and asynchronously 
+* onClose and onError can be overridden  
+* you receive a multiple message by overriding `MessageHandler.Partial<String>`
+* the configuration of programmatic endpoints is done by the implementation of `ServerApplicationConfig`
+
+```Java
+public class MyApplicationConfig implements ServerApplicationConfig  {
+
+	@Override
+	public Set<ServerEndpointConfig> getEndpointConfigs(Set<Class<? extends Endpoint>> endpointClasses) {
+		HashSet<ServerEndpointConfig> config = new HashSet<ServerEndpointConfig>();
+		config.add(ServerEndpointConfig.Builder.create(MyProgmmaticEndpoint.class, "/chat2").build());
+		return config;
+	}
+
+	@Override
+	public Set<Class<?>> getAnnotatedEndpointClasses(Set<Class<?>> scanned) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}
+```
+
+* the ServerEndpointConfig.Builder can be used to register the configuarator, decoders etc. 
+
+
+### Annotated Client Endpoint
+
+You can convert a POJO to a WebSocket client endpoint by using `@ClientEndpoint`
+
+`@ClientEndpoint` can has the following attributes: 
+
+* configurator 
+* encoders 
+* decoders 
+* subprotocols 
+
+* `@OnOpen`, `@OnClose` and `@OnError` can intercept life-cycle events
+* `@OnMessage` can be used to receive messages
+* the client can connect to the endpoint via `ContainerProvider`
+* you can use a custom configurator as well `ClientEndpointConfig.Configurator`
+
+```Java
+WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+String uri = "ws://127.0.0.1:8080/sample-websocket/chat2";
+container.connectToServer(MyClientEndpoint.class, URI.create(uri));
+```
+
+### Programmatic Client Endpoint
+
+* By implementing the interface `Endpoint`
+* configuration via `MeassageHandlers`
+* `session.getBasicRemote` vs. `session.getAsyncRemote`
+* `MeassageHandler.Whole` vs. `MeassageHandler.Partial`
+* connection via ContainerProvider
+* you can use a custom configurator as well `ClientEndpointConfig.Configurator`
+
+### Encoders and Decoders 
+
+* JSON is a typical format for a text format
+* you can specify multiple decoders and encoders on am annotated endpoint
+* --> the first encoder that matches the given type is used 
+* --> the first decode where the `willdecode` methode returns true is used 
+*  ServerEndpointConfig.Builder can be used for programmatic endpoints to register decoders and encoders
+*  ClientEndpointConfig.Builder can be used for programmatic client endpoints to register decoders and encoders
+
+### Integration with Java EE Security 
+
+* protected in the deployment descriptor 
+* a WebSocket that requires authentication must rely on the handshake request that seeks to initiate a connection to be previously authenticated.
+* --> typically this will be performed by a http authentication  
+* Transport guarantee of NONE allows unencypted ws://
+* Transport guarantee of CONFIDENTIAL only allows wss://
+
 
 sample: Example Using Multiple Java EE 7 Technologies Deployed as an EAR
 ==============================================================================================

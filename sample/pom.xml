@@ -35,6 +35,8 @@
 		<module>sample-login-servlet</module>
 		<module>sample-rest</module>
 		<module>sample-json</module>
+		<module>sample-websocket</module>
+		<module>sample-websocket-client</module>
 	</modules>
 
 	<properties>
