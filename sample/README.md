@@ -373,6 +373,88 @@ An server side registration alternative is via the `Application`.
 
 ## SOAP-Based Web Services 
 
+### Web Service Endpoints 
+
+`@WebService`
+
+* is called a Service Endpoint Interface (an interface is not required)
+* code first approach vs. contract first approach 
+* all public methods of the class are exposed as web service operations 
+
+`@WebService` - attributes to override the defaults 
+* endpointInterface ~ fully qualified  class name of the service endpoint interface 
+* name ~ name of the service (wsdl:portType)
+* portName ~ port name of he web service (wsdl:port)
+* serviceName ~ service name of the web service (wsdl:service) 
+* targetNamespace ~ namespace for the web service (targetNamespace)
+* wsdlLocation ~ location of a predefined WSDL describing the service   
+`@WebMethod`
+* can be used to override the defaults 
+* if one method is annotated all other not available at the SEI endpoint 
+* `@WebMethod(operationName='hello')`
+* `@WebMethod(exclude=true)`
+* `@WebParam`
+* `@WebResult`
+* `@XmlRootElement` ~ converted to XML and vice versa 
+* unchecked exceptions are mapped to `SOAPFaultException`
+* `@WebFault` may be used to customize the mapping of wsdl:fault in the generated WSDL
+* `@OneWay` no response to the client, the method has to be void 
+* `WebServiceContext` may be injected in an endpoint implementation class  
+
+WSDL 
+* by default document/literal style 
+* `@SOAPBinding(style = SOAPBinding.Style.RPC)`
+
+### Provider-Based Dynamic Endpoints 
+* provider based endpoints provides y dynamic alternative to the SEI-based endpoint 
+* the endpoint needs to implement the `Provider<Source>`, `Provider<SOAPMessage>` or `Provider<DataSource>` 
+
+```java 
+@WebServiceProvider
+public class MyProvider implements Provider<Source> {
+
+	@Override
+	public Source invoke(Source request) {
+		//...
+	}
+}
+```
+
+* by default only the message payload 
+
+### Endpoint-Based Endpoints 
+* lightweight alternative for creating and publishing an endpoint 
+* conventient way of deploying a JAX-WS based web service and point from SE applications 
+
+```java 
+@WebService
+public class SimpleWebService {
+
+}
+
+Endpoint endpoint = Endpoint.publish("http://localhost:8080/example/SimpleWebService", new SimpleWebService());
+
+```
+
+* contract first endpoint by packing the WSDL 
+
+### Web Service Client
+
+* contract between the web service endpoint and a client is defined through WSDL
+* `@WebServiceClient`
+
+### Dispatch-Based Dynamic Client 
+* dispatch-based endpoint provides a dynamic alternative to the generated proxy-based client
+* the client can be implemented via `Dispatch<Source>, Dispatch<SOAPMeassage>, Dispatch<DataSource>, Dispatch<JAXB Object>`
+
+### Handler
+
+* Logical handler ~ cannot change any protocol-specific parts of a message 
+* implements `LogicalHandler` (handleMessage, handleFault, close)
+* Protocol handler ~ may access or change the protocol specific aspects of a message 
+* Protocol handler, specific to the SOAP protocol, are called by the SOAP handler 
+* implements `SOAPHandler` (handleMessage, handleFault, close)
+
 ## JSON Processing 
 
 JSON Processing in JSR 353, goals:
