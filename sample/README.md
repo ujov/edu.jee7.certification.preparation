@@ -388,7 +388,8 @@ An server side registration alternative is via the `Application`.
 * serviceName ~ service name of the web service (wsdl:service) 
 * targetNamespace ~ namespace for the web service (targetNamespace)
 * wsdlLocation ~ location of a predefined WSDL describing the service   
-`@WebMethod`
+
+`@WebMethod`
 * can be used to override the defaults 
 * if one method is annotated all other not available at the SEI endpoint 
 * `@WebMethod(operationName='hello')`
@@ -405,7 +406,8 @@ WSDL
 * by default document/literal style 
 * `@SOAPBinding(style = SOAPBinding.Style.RPC)`
 
-### Provider-Based Dynamic Endpoints 
+### Provider-Based Dynamic Endpoints 
+
 * provider based endpoints provides y dynamic alternative to the SEI-based endpoint 
 * the endpoint needs to implement the `Provider<Source>`, `Provider<SOAPMessage>` or `Provider<DataSource>` 
 
@@ -422,10 +424,12 @@ public class MyProvider implements Provider<Source> {
 
 * by default only the message payload 
 
-### Endpoint-Based Endpoints 
+### Endpoint-Based Endpoints 
+
 * lightweight alternative for creating and publishing an endpoint 
 * conventient way of deploying a JAX-WS based web service and point from SE applications 
-
+
+
 ```java 
 @WebService
 public class SimpleWebService {
@@ -443,7 +447,8 @@ Endpoint endpoint = Endpoint.publish("http://localhost:8080/example/SimpleWebSer
 * contract between the web service endpoint and a client is defined through WSDL
 * `@WebServiceClient`
 
-### Dispatch-Based Dynamic Client 
+### Dispatch-Based Dynamic Client 
+
 * dispatch-based endpoint provides a dynamic alternative to the generated proxy-based client
 * the client can be implemented via `Dispatch<Source>, Dispatch<SOAPMeassage>, Dispatch<DataSource>, Dispatch<JAXB Object>`
 
@@ -764,130 +769,328 @@ container.connectToServer(MyClientEndpoint.class, URI.create(uri));
 * Transport guarantee of CONFIDENTIAL only allows wss://
 
 
-sample: Example Using Multiple Java EE 7 Technologies Deployed as an EAR
-==============================================================================================
-Author: Pete Muir
-Level: Intermediate
-Technologies: EAR, JPA
-Summary: Based on kitchensink, but deployed as an EAR
-Target Project: WildFly
-Source: <https://github.com/wildfly/quickstart/>
+## Enterprise Java Beans 
 
-What is it?
------------
+* Session beans 
+* Message 
 
-This is your project! It is a sample, deployable Maven 3 project to help you get your foot in the door developing with Java EE 7 on JBoss WildFly.
+### Stateful Session Beans 
 
-This project is setup to allow you to create a compliant Java EE 7 application using JSF 2.2, CDI 1.1, EJB 3.2, JPA 2.1 and Bean Validation 1.1. It includes a persistence unit and some sample persistence and transaction code to introduce you to database access in enterprise Java.
+* `@Stateful`
+* `@Remove` client can call annotated method to remove the instance from the container 
+* no-interface view ~ bean is onlny locally accessible to clients packaged in the same archive 
+* `@Remote` to access the bean remotely  
+* `@Local` default 
+* if one of the interfaces is marked `@Local` or `@Remote`, the each interface needs to be exposed must be marked explicitly
+* `@PostConstruct` and `@PreDestroy` lifecycle callbacks are available
+* `@PrePassivate` and `@PostActivate`
 
-System requirements
--------------------
+### Stateless Session Beans
 
-All you need to build this project is Java 7.0 (Java SDK 1.7) or better, Maven 3.1 or better.
+* all instances are equivalent, so the container can choose to delegate a client-invoke to any available instance
+* they don't need to be passivated because of no stat
+* `@Statelass`  
+* `@EJB` to inject
+* no-interface, `@Remote` and `@Local` see Stateful Session Beans
+* `@PostConstruct` and `@PreDestroy` are supported 
 
-The application this project produces is designed to be run on JBoss WildFly.
+### Singelton Session Beans 
 
- 
-Configure Maven
----------------
+* `@Singelton`
+* `@Startup` for eager initialization 
+* one instance per application 
+* `@PostConstruct` will be executed before the bean is available 
+* `@DepandsOn` define dependencies between singeltons
+* `@PostConstruct` and `@PreDestroy`
+* by default container managed concurrency 
+* `@Lock(LockType.WRITE)` (exclusive)  is default vs. `@Lock(LockType.READ)` (shared)
 
-If you have not yet done so, you must [Configure Maven](https://github.com/jboss-developer/jboss-developer-shared-resources/blob/master/guides/CONFIGURE_MAVEN.md) before testing the quickstarts.
+### Life-Cycle Event Callbacks
 
+* `@AroundConstruct` ~ only on interceptor class 
 
-Start JBoss WildFly with the Web Profile
--------------------------
-
-1. Open a command line and navigate to the root of the JBoss server directory.
-2. The following shows the command line to start the server with the web profile:
-
-        For Linux:   JBOSS_HOME/bin/standalone.sh
-        For Windows: JBOSS_HOME\bin\standalone.bat
-
- 
-Build and Deploy the Quickstart
--------------------------
-
-_NOTE: The following build command assumes you have configured your Maven user settings. If you have not, you must include Maven setting arguments on the command line. See [Build and Deploy the Quickstarts](https://github.com/jboss-developer/jboss-eap-quickstarts#build-and-deploy-the-quickstarts) for complete instructions and additional options._
-
-1. Make sure you have started the JBoss Server as described above.
-2. Open a command line and navigate to the root directory of this quickstart.
-3. Type this command to build and deploy the archive:
-
-        mvn clean package wildfly:deploy
-
-4. This will deploy `target/sample.ear` to the running instance of the server.
+```Java
+@MyAroundConstruct
+@Interceptor
+public class MyAroundConstructInterceptor {
 
 
-Access the application 
----------------------
+	@AroundConstruct
+	public void validateConstructor(InvocationContext context) {
+	
+	}
+}
 
-The application will be running at the following URL: <http://localhost:8080/sample-web>.
+// -->
 
-1. Enter a name, email address, and Phone nubmer in the input field and click the _Register_ button.
-2. If the data entered is valid, the new member will be registered and added to the _Members_ display list.
-3. If the data is not valid, you must fix the validation errors and try again.
-4. When the registration is successful, you will see a log message in the server console:
+@MyAroundConstruct
+@Stateful
+public class MyBean {
 
-        Registering _the_name_you_entered_
+}
+```
+
+* the `validateConstructor` method is called every time the Beans constructor is called
+* `@PostConstruct` method needs to be executed after dependency injection, only one method can be annotated
+* `@PreDestroy` is called before the instance is removed by the container 
+* `@PrePassivate` only for stateful session beans, may throw system runtime exception but not application exceptions 
+* `@PostActivate` only for stateful session beans, may throw system runtime exception but not application exceptions 
+
+* transaction contexts for life-cycle callbacks: 
+* for a statelass session bean, it executes in an unspecified transaction context 
+* for a statefull session bean, it executes in a transaction context determined by the life-cycle callback method's transaction attribute 
+*  for a singelton session bean, it executes in a transaction context determined by the bean's transaction mamagement type and any applicable transaction attribute   
+
+### Meassage-Driven Beans
+
+* most commonly used to process Java Meassage Service (JMS)
+* `@MeassageDriven(mappedName = "myDestination")`
+* mappedName ~ defines specifies the JNDI name of the JMS destination
+* `MessageListener` Interface with `onMessage` method
+* MDB can not invoked by other session beans 
+* `ActivationConfigProperty` can be set via the `@MeassageDriven`
+
+* `ActivationConfigProperty` properties:
+* achnowledgeMode ~
+* messageSelector ~
+* destinationType ~ Queue or Topic 
+* subscriptionDurabillity ~ if MDB is used with a Topic, specifies whether a durable or nondurable subscription is used. Supported values are Durable or NonDurable.
+* single message-driven bean can process messages from multiple clients concurrently 
+* all operations within the `onMessage` are part of a single transaction 
+* `MessageDrivenContext` provides access to the runtime message-drivem context 
+
+```Java
+@Resource
+MessageDrivenContext mdc;
+```
+
+### Portable Global JNDI Names
+
+* you cam access a ejb using a portable global JNDI name with the following syntax: 
+
+```
+java:global[/<app-name>]/<module-name>/<bean-name>[!<fully-qualified-interface-name]
+```
+
+* app-name ~ only if the session bean is packged with an .ear file 
+* module-name ~ name of the module in whisch the session bean is packaged 
+* bean-name ~ ejb-name 
+
+### Transactions 
+
+* bean-managed transaction vs. container-managed transaction (default)
+* `@TransactionManagement` is used to declare transaction handling (`CONTAINER` (default) vs `BEAN`)
+* bean-managed transaction requires `@TransactionManagement(BEAN)` and the use of `UserTransaction`
+
+```Java
+@Statelass
+@TransactionManagement(BEAN)
+public class AccountSessionBean {
+@Resource
+UserTransaction tx;
+
+	public float deposit() {
+		// ...
+		tx.begin();
+		// ...
+		tx.commit();
+		// ...
+	}
+}
+```
+
+* a sateless session bean using CMT can use `@TransactionAttribute` (REQUIRED = default)
+* `@TransactionAttribute` values an meanings: 
+* MANDATORY ~ without `EJBTransactionRequiredException`
+* REQUIRED ~ default 
+* REQUIRES_NEW ~ always starts a new transaction, if the client calls with a transaction context, then the suspended transaction is resumed after the new transaction has commited 
+* SUPPORTS ~ if the client calls with a transaction context, then it behaves as REQUIRED, if the client without a context it behaves as NOT_SUPPORTED 
+* NOT_SUPPORTED ~ if the client calls with a transaction context, then the container suspends and resumes the association of the transaction context before and after the business method is invoked. If the client calls without a transaction context, then **no new transaction** context is created. 
+* NEVER ~ client is required to call without a transaction context. If not `EJBTransactionRequiredException`. If the client calls without a transaction context, then it behaves as NOT_SUPPORTED.
+
+* only REQUIRED and NOT_SUPPORTED transaction attributes may be used for message-driven beans. A JMS message is delivered to its final destination after the transaction is committed, so the client will not receive the reply within the same transaction.
+
+### Asynchronous Invocation 
+
+* `@Asynchronous` (method or class level)
+
+```Java
+@Statelass
+@Asynchronous
+public class AsyncBean {
+
+	public Future<Integer> add(...) {
+	
+		return new AsyncResult(...);
+	}
+}
+```
+
+### Timers
+
+Time-based events can be scheduled in multiple ways:
+* automatic based upon `@Schedule` and `@Schedules`
+* programmatically using `TimerService`
+* methods marked with `@Timeout`
+* Deployment descriptors 
+
+```Java
+@Singelton
+@StartUp
+public class MyTimer implements TimedObject {
+
+	@Rescource TimerService timerService; 
+	
+	@PostConstruct
+	public void initTimer() {
+		timerService.createCalendarTimer(new ScheduleExpression().hour("*").minute("*").second("*/10"), new TimerConfig("myTimer", true));
+	}
+
+	@Override
+	public void ejbTimeout(Timer timer) {
+		//...
+	}
+}
+```
+
+* When a programmatic timer expires (goes off), the container calls the method annotated @Timeout in the bean’s implementation class. The @Timeout method contains the business logic that handles the timed event.
+* Methods annotated @Timeout in the enterprise bean class must return void and optionally take a javax.ejb.Timer object as the only parameter. They may not throw application exceptions
+
+* timers are not available for stateful session beans 
+* timers are persistent by default `new TimerConfig("myTimer", true)` or `@Schedule(..., persistent="false")`
 
 
-Undeploy the Archive
---------------------
+### Embeddable API
 
-1. Make sure you have started the JBoss Server as described above.
-2. Open a command line and navigate to the root directory of this quickstart.
-3. When you are finished testing, type this command to undeploy the archive:
+```Java
+EJBContainer ejbC = EJBContainer.createEJBContainer();
+Context ctx = ejbC.getContext();
+ctx.lookup(...)
+```
 
-        mvn wildfly:undeploy
+### EJB Lite 
 
+Page 166
 
-Run the Arquillian Tests 
--------------------------
+## Context and Dependency Injection 
 
-This quickstart provides Arquillian tests. By default, these tests are configured to be skipped as Arquillian tests require the use of a container. 
+* "strong typing, loose coupling"
+* the injected bean is also called a *contextual instance*
 
-_NOTE: The following commands assume you have configured your Maven user settings. If you have not, you must include Maven setting arguments on the command line. See [Run the Arquillian Tests](https://github.com/jboss-developer/jboss-developer-shared-resources/blob/master/guides/RUN_ARQUILLIAN_TESTS.md) for complete instructions and additional options._
+* **bean discovery mode values:**
+* all ~ all types are considered for injection
+* annotated ~ only types with bean-defining annotations
+* none ~ disable cdi
 
-1. Make sure you have started the JBoss Server as described above.
-2. Open a command line and navigate to the root directory of this quickstart.
-3. Type the following command to run the test goal with the following profile activated:
+* beans.xml
+* implicit bean archive is possible 
+* <scan><exclude> to exclude beans / packages 
+* <scan><exclude><if-class-available name="..." /> vs <scan><exclude><if-class-not-available name="..." /> vs. <scan><exclude><if-system-property name="..." value="" />
+* `@Vetoed` to prevent  from injection (packages as well)
 
-        mvn clean test -Parq-wildfly-remote
+### Injection Points 
 
+* field, method, or constructor (at most one, has to be public)
+* bean initialization sequence:
+* default constructor or the one annotated with `@Inject`
+* all fields with `@Inject`
+* all methods with `@Inject`
+* the `@PostConstruct` method, if any
 
-Investigate the Console Output
----------------------
-You should see the following console output when you run the tests:
+### Qualifier and Alternative 
 
-    Results :
-    Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
-
-
-Investigate the Server Console Output
----------------------
-You should see messages similar to the following:
-
-    INFO  [org.jboss.as.server] (management-handler-thread - 9) JBAS018559: Deployed "test.war"
-    INFO  [jee7.certification.preparation.sample.controller.MemberRegistration] (http--127.0.0.1-8080-2) Registering Jane Doe
-    INFO  [jee7.certification.preparation.sample.test.MemberRegistrationTest] (http--127.0.0.1-8080-2) Jane Doe was persisted with id 1
-    INFO  [org.jboss.weld.deployer] (MSC service thread 1-6) JBAS016009: Stopping weld service for deployment test.war
-    INFO  [org.jboss.as.jpa] (MSC service thread 1-1) JBAS011403: Stopping Persistence Unit Service 'test.war#primary'
-    INFO  [org.hibernate.tool.hbm2ddl.SchemaExport] (MSC service thread 1-1) HHH000227: Running hbm2ddl schema export
-    INFO  [org.hibernate.tool.hbm2ddl.SchemaExport] (MSC service thread 1-1) HHH000230: Schema export complete
-    INFO  [org.jboss.as.connector.subsystems.datasources] (MSC service thread 1-5) JBAS010409: Unbound data source [jboss/datasources/sampleTestDS]
-    INFO  [org.jboss.as.server.deployment] (MSC service thread 1-6) JBAS015877: Stopped deployment test.war in 19ms
-    INFO  [org.jboss.as.server] (management-handler-thread - 10) JBAS018558: Undeployed "test.war"
-
-
-Run the Quickstart in JBoss Developer Studio or Eclipse
--------------------------------------
-You can also start the server and deploy the quickstarts from Eclipse using JBoss tools. For more information, see [Use JBoss Developer Studio or Eclipse to Run the Quickstarts](https://github.com/jboss-developer/jboss-developer-shared-resources/blob/master/guides/USE_JBDS.md) 
+* custom annotation based on `@Qualifier`
+* usage for example: `@Inject @Fancy Greeting gretting`
+* build in CDI qualifiers:
+* `@Named` ~ string based, required for usage in EL
+* `@Default` ~ default qualifier on all beans **without an explicit qualifier**, except `@Named`
+* `@Any` ~ default qualifier on all beans except `@New` 
+* `@New` ~ allows the application to obtain a new instance independent of the declared scope; deprecated in CDI 1.1; and injecting @Dependent scoped beans is encouraged instead 
+* use of `@Named` not recommended 
+* `@Alternative` unavailable for injection, need to explicit enable them (beans.xml) 
 
 
-Debug the Application
----------------------
+### Poducer and Disposer
 
-If you want to debug the source code or look at the Javadocs of any library in the project, run either of the following commands to pull them into your local repository. The IDE should then detect them.
+* `@Inject` and `@Qualifier` provide static injection of a bean ...
+* `@Produces` ~ factory like creation 
+* `@Disposes` ~ for explicit destruction 
 
-        mvn dependency:sources
-        mvn dependency:resolve -Dclassifier=javadoc
+### Interceptors 
+
+* `@InterceptorBinding` for example Logging annotation 
+* `@Interceptor`
+* by default all interceptors are disabled 
+* need to be enabled and ordered via `@Priority`
+* can be enabled in the beans.xml as well; invoked in the order in which they are specified inside the <interceptors> element
+
+```Java
+@Interceptor
+@Logging // custom annotation
+public class LoggingInterceptor {
+	@AroundInvoke
+	public Object log(InvocationContext context) throws Exception {
+	
+	}
+}
+```
+
+### Decoraters
+
+* used to implement business concerns 
+* `@Decorator` implements the bean it decorates 
+* disabled by default 
+* need to be enabled and ordered via `@Priority`
+* can be enabled in the beans.xml as well <decoraters> 
+* decoraters enabled via `@Priority` called before beans.xml
+* interceptor for a method is called before the decorater for this method
+
+### Scopes and Contexts
+
+* a bean is said to be in a scope and is associated with a context
+* predefined scopes in CDI:
+* `@RequestScoped`
+* `@SessionScoped`
+* `@ApplicationScoped`
+* `@ConversationScoped`
+* `@Dependent` ~ dependent pseudoscope
+
+* `@Contextual, @ContextualContext, and @Contex` can be used to create a custom scope
+
+### Sterotypes
+
+* a stereotye encapsulates *architectural patterns or common metadata*
+* encapsulates scope, interceptor bindings, qualifiers 
+* meta-annotation annotated with `@Sterotype` 
+* declare at most one scope 
+* zero to multiple interceptors
+* adding `@Alternative` is allowed 
+* `@Decorator`, `@Interceptor` and `@Model` are predefined sterotypes
+
+### Events 
+
+* producers raise events 
+* consumed by obsevers 
+
+```Java
+@Inject @Any @Added Event<Customer> event; 
+
+void onCustomer(@Observers @Added Customer event) {
+
+}
+```
+* `@Observers(notifyObserves = Reception.IF_EXISTS)` ~ to prevent creation if not exists 
+* `@Observers(during = TransactionPhase.AFTER_SUCCESS)` 
+
+### Portable Extensions 
+
+* CDI exposes an Service Provider Intercae (SPI) allowing portable extensions to extend the functionally of the container. 
+* implements `Extention`
+* can listen to a verity of container life-cycle events
+
+### Built-in Beans
+* `@Inject UserTransaction` (JEE container)
+* `@Inject Principal` (JEE container)
+* `@Inject HttpServletRequest` (Servlet container)
+* `@Inject HttpSession` (Servlet container)
+* `@Inject ServletContext` (Servlet container)
