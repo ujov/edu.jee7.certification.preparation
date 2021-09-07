@@ -1094,3 +1094,229 @@ void onCustomer(@Observers @Added Customer event) {
 * `@Inject HttpServletRequest` (Servlet container)
 * `@Inject HttpSession` (Servlet container)
 * `@Inject ServletContext` (Servlet container)
+
+## Concurrency Utilities 
+
+### Asynchronous Tasks 
+
+* `javax.enterprise.concurrent.MangedExecutorService` instead of `java.util.concurrent.ExecutorService`
+* JNDI lookup "java:comp/DefaultMangedExecutorService"
+* unit of work by the implementation of `Runnable` or `Callable`
+* a Callable task can return a result, whereas a Runnable task does not 
+* a Callable task can throw checked exceptions, whereas a Runnable task cannot
+* submit task instances to a MangedExecutorService using any of the `sumit (Callable), execute (Runnable), invokeAll, invokeAny` method
+* a task runs within the application component context that submitted the task
+* the security context is propagated to the tasks 
+* the transaction context is not propagated to the tasks
+* interface `ManagedTask` provides notification about life-cycle events 
+* interface `ManagedTaskListener` to receive life-cycle events
+
+### Schedule Task  
+
+* `javax.enterprise.concurrent.MangedExecutorService` provides a managed version of `ScheduledExecutorService`
+* `ScheduledExecutorService` can be used to schedule tasks 
+* JNDI lookup "java:comp/DefaultMangedScheduledExecutorService"
+* methods `submit, execute, invokeAll, invokeAny, schedule, scheduleAtFixedRate, scheduleWithFixedDelay`
+* `ScheduledFuture`
+
+### Managed Threads 
+
+* `javax.enterprise.concurrent.ManagedThreadFactory` can be used to create managed threads for execution in a JEE environment 
+* JNDI lookup "java:comp/DefaultMangedThreadFactory"
+* `factory.newThread(new MyTask())` ~ thread creation 
+* --> `thread.start()`
+
+### Dynamic Contextual Object 
+
+* `ContextService`
+* JNDI lookup "java:comp/DefaultContextService"
+* `createContextualProxy` method to create a contextual object proxy 
+
+## Bean Validation 
+
+* annotation and xml (META-INF/validation.xml)
+
+### Built-in Constraints 
+
+* defined in the javax.validation.constraints package
+* `@Size` ~ String, Collection, Map and Array are supported types 
+* `@Digits`
+* each constraint declaration can also override the `message, group, and payload` fields
+* `payload` ~ is used to associate meta data 
+* `validationAppliesTo` new in JEE7
+
+### Defining a Custom Constraint 
+
+* defining a annotation `@Constraint(validateBy=ZipCodeValidator.class)`
+* implement `ConstraintValidator` interface with two methods (`initialize, and isValid(String value, ConstraintValidatorContext context)`)
+* if a bean X contains a field of type Y, by default, the validation of type X does nor trigger the validation of type Y
+* the validation of Y can achieved with `@Valid`
+* `@Valid` provides polymorphic validation 
+
+### Validation Groups
+
+* by default all validation groups are executed in no particular order 
+* a constrain may be defined in an explicitly created validation group in order to perform partial validation of the bean or control the order 
+* a validation group is defined as an interface 
+* `@ZipCode(groups=ZipCodeGroup.class)` --> excludes default group
+* `@ZipCode(groups={Default.class,ZipCodeGroup.class})`
+* groups can inherit other groups through interface inheritance 
+* partial validation can be achieved by multiple groups 
+* the validationGroup can be passed to jsf 
+
+```Xml
+<h:inputText value="#{person.name}" id="name">
+	<f:validateBean validationGroups="org.sample.Page1Group" />
+</h:inputText>
+```
+* `@GroupSequence`
+
+### Method and Constructor Constraint 
+
+* declared constraints need to be explicitly triggered 
+* cross-parameter constraints can be declared
+* by default only constructors and nongetter methods are validated, this can be changed via `@ValidateExecutable`
+
+## Java Transaction 
+
+### User-Managed Transactions 
+
+* The `UserTransaction` interface enables the application to control transaction boundaries programmatically 
+* Typically used in EJBs with bean-managed transactions (BMT)
+* `@Inject UserTransaction ut` vs. JNDI `java.comp/UserTransaction`
+* `ut.begin() ... ut.commit() ... ut.rollback()`
+* after commit or rollback the thread is no langer associated with a transaction 
+
+### Container-Managed Transactions 
+
+* `@Transactional` to define transaction boundaries on CDI-managed beans, as well as classes defined as managed beans 
+* class and method level 
+* life-cycle methods are invoked in an unspecified transaction context unlass the method is annotated explicitly with `@Transactional` the `TxType` element of the annotation provides the semantic quivalent of the transaction attributes in EB 
+* REQUIRED ~ default
+* REQUIRED_NEW ~
+* MANDATORY ~ outside a transaction `TransactionalException` with nested `TransactionalRequiredException`
+* SUPPORTS ~
+* NOT_SUPPORTED ~
+* NEVER ~ inside a transaction context `TransactionalException` with nested `InvalidTransactionalException`
+* by default checked exceptions do not result in the transactional interceptor marking the transaction for rollback
+* instances of `RuntimeException` and its subclasses do 
+* `rollbackOn` can be used to set Exceptions that cause a rollback 
+* `dontRollbackOn`
+
+### @TransactionScoped
+
+* new CDI scope javax.transaction.TransactionScope ~ defines a bean instances whose life-cycle is scoped to the currentky active JTA transaction
+
+## Java Persistence 
+
+### Entities 
+* no-arg public constructor 
+* `@Entity`
+* ...
+* a undirectional relationship requires the owning side to specify the annotation 
+
+### Persistence Unit, Persistence Context, and Entity Manager 
+
+* entity is managed within a *persistence context*
+* within the context the entity instance is managed by the *entity manager* 
+* the entity manger may be *container-managed* (JEE) vs *application-managed* (SE)
+
+```Java
+@PersitenceContext
+EntityManager em;
+```
+
+* via JNDI `@PersitenceContext(name="persitence/myJNDI")`
+
+```Java
+@PersitenceUnit
+EntityManagerFactory emf;
+
+EntityManager em = emf.createEntityManager();
+```
+
+* entity manager and persitence context are not required to be threadsafe --> servlets (not threadsafe) should use the factory to obtain an entity manager 
+* *persistence unit* is defined by a *persistence.xml*
+* transaction-type JTA means that a JTA data source is provided 
+* JEE7 defines java:comp/DefaultDataSource
+* by default, a container-managed persistence context is scoped to a single transaction --> entities detached at the end of the transaction
+* an *extended persitence context*  for stateful session beans is possible 
+* `@PersitenceContext(type=PersitenceContextType.EXTENDED)` 
+* default `SynchronizedTYPE.SYNCHRONIZED` ~ Context is joined to the current JTA transaction
+* `SynchronizedTYPE.UNSYNCHRONIZED` can be enlisted in a JTA transaction via `EntityManager.joinTransaction`
+ 
+ 
+ ### Schema Generation 
+ 
+ * via properties in the persistence.xml*
+ 
+ ### Create, Read, Update, and Delete Entities 
+ 
+ * jpql 
+ * EntityManager.createNamedXXX
+ * crtieria API (since JPA 2.1 updating and deleting is supported)
+ * native SQL statement  `@SQLResultSetMapping` is used to specify the mapping of the result
+ * `em.persist()`
+ * Named Queries vs dynamic queries
+ * update via em.nerge, jql or criteria (2.1) 
+ * delete via em.remove, jql or criteria (2.1)
+ 
+  ### Entity Listeners
+  * `@PostLoad`
+  * `@PrePersist`
+  * `@PostPersist`
+  * `@PreUpdate`
+  * `@PostUpdate`
+  * `@PreRemove`
+  * `@PostRemove`
+  * callback methods can be public, private, protected, or package-level access (not static or final)
+  
+  ```Java
+@Entity
+@EntityListeners(Listener.class) // place to implement callback methods as well 
+```
+
+* can be defined using the XML descriptors bundled in META-INF/orm.xml 
+* default entity listeners can be defined by xml
+
+### Stored Procedures 
+
+* `@NamedStoredProcedureQuery` vs dynamic 
+
+```Java 
+@Entity 
+@NamedStoredProcedureQuery(name="...", produreName="...")
+
+```
+
+* if you do not define the stored procedure via NamedStoredProcedureQuery you must provide the parameter an result information dynamically 
+
+### Validating Entities 
+
+* `validation-mode` element in the persitence.xml
+* by default,all entities in a web application are in the default validation group 
+* default group is targeted in pre-persist and pre-update events 
+* thsi can be overriden by setting validation properties  
+
+### Transactions and Locking
+
+* default *optimistic concurrency control* ~ anyone can read and update an entity 
+* `@Version` enables optimistic locking (only the persistence provider is permitted to update that field)
+* `OptimsticLockException` has to be handled by the application
+* LockModeType.PESSIMISTIC_WRITE --> DB Lock but limits concurrent access
+
+### Caching 
+
+* first level by entity manager in the persistence context 
+* second level caching by the persistence provider can be enabled by the `shared-cache-mode` in the persistence.xml:
+* ALL ~ all entities ...
+* NONE ~ 
+* ENABLE_SELECTIVE ~ only cached entities marked with `@Cachable(true)`
+* DISABLE_SELECTIVE ~ `@Cachable(false)`
+* UNSPECIFIED ~  persistence provider defaults  
+
+* `emf.getCache()`
+* `cache.contains(Student.class, 1234)`
+* `cache.evict(Student.class, 1234)`
+* `cache.evict(Student.class)`
+* `cache.evictAll()`
