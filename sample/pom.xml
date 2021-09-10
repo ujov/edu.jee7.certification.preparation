@@ -97,7 +97,7 @@
 				<type>war</type>
 				<scope>compile</scope>
 			</dependency>
-			<dependency>
+<!-- 			<dependency>
 				<groupId>jee7.certification.preparation</groupId>
 				<artifactId>sample-login-servlet</artifactId>
 				<version>${project.version}</version>
@@ -110,7 +110,7 @@
 				<version>${project.version}</version>
 				<type>war</type>
 				<scope>compile</scope>
-			</dependency>
+			</dependency> -->
 
 			<!-- JBoss distributes a complete set of Java EE 7 APIs including a Bill 
 				of Materials (BOM). A BOM specifies the versions of a "stack" (or a collection) 

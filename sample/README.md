@@ -1320,3 +1320,384 @@ EntityManager em = emf.createEntityManager();
 * `cache.evict(Student.class, 1234)`
 * `cache.evict(Student.class)`
 * `cache.evictAll()`
+
+## Java Message Service
+
+* MOM allows sending and receiving messages between distributed systems
+* JMS ~ MON that allows Java programs to create, send, receive, and read an enterprise messaging systsm's messages
+
+JMS defines the following concepts:
+* *JMS provider* ~ implementation of the JMS interfaces 
+* *JMS message* ~ object the contains the data, JMS producer/publisher creates and sends whereas JMS consumer/subscriber receives  
+* *Administered objects* ~ typically refer to `ConnectionFactory` and `Destination` and are identified by a JNDI name, `ConnectionFactory` used to create a connection with the provider, `Destination` is the object used by the client to specify the destination of messages it is sending and the source of messages it is receiving 
+
+TWO messaging models:
+* *Point-to-Point* (Queue) only on subscriber but one and more publisher
+* *Publish-Subscribe* (Topic) n to m 
+
+### JMS Messages 
+
+* composed of three parts: 
+
+1. *Header* ~ standard header fields: (JMSDestination, JMSDeliveryMode, JMSMeassageID, JMSTimestamp, JMSCorrelationID, JMSReplyTo, JMSRedelivered, JMSType, JMSExpiration, JMSPriority)
+2. *Properties* ~ optional header fields added by the client
+3. *Body* ~ actual payload of the message, different types of body messages are (`SteamMessage`, `MapMessage`, `TextMessage`, `ObjectMessage`, `ByteMessage`) 
+
+### Sending a Message
+
+
+```Java
+/**
+ * Session Bean implementation class MessageSender
+ */
+@Stateless
+@LocalBean
+@JMSDestinationDefinitions({
+	@JMSDestinationDefinition(name = "java:/jms/queue/example", interfaceName = "javax.jms.Queue") })
+public class MessageSender {
+
+	/**
+	 * Default constructor.
+	 */
+	public MessageSender() {
+
+	}
+
+	@Inject
+	private Logger log;
+
+	@Inject
+	JMSContext context;
+
+	@Resource(lookup = "java:/jms/queue/example", type = Queue.class)
+	Destination exampleQueue;
+
+	@Schedule(hour = "*", minute = "*", second = "*/30")
+	public void sendMessage() {
+		log.info("sendMessage");
+		context.createProducer().send(exampleQueue, "Hello World");
+	}
+}
+```
+
+* `@JMSDestinationDefinitions`
+* `@JMSDestinationDefinition` ~  * An application may use this annotation to specify a JMS {@code Destination} resource that it requires in its operational  environment. This provides information that can be used at the application's deployment to provision the required resource and allows an application to be deployed into a Java EE environment with more minimal administrative configuration.
+* `JMSContext` ~ combines `Connection` and `Session`, container managed JMSContext is injected via `@Inject` --> context created and closed by the container
+* `JMSConnectionFactory` may be used, predefined factory under `java:comp/DefaultJMSConnectionFactory`
+
+```Java
+@Inject
+@JMSConnectionFactory("jms/myConnectionFactory")
+private JMSContext context;
+```
+
+* `@JMSPasswordCredential`
+* `Destination` ~ encapsulates provider specific address (Topic or Queue may be injected)
+* `JMSProducer` ~ created via `createProducer`
+* `context.createProducer().setAsync(new CompletionListener() {})` ~ default synch sending 
+
+Usage of classic API
+
+* @Resource(mappedName = "java:jboss/DefaultJMSConnectionFactory")
+* @Resource(lookup = "java:/jms/queue/example", type= Queue.class)
+* `createConnection.createSession(false, Session.AUTO_ACKNOWLEDGE);` if the first parameter is true you have to commit the session explicitly  
+
+JMS message acknowledgment modes: 
+* AUTO_ACKNOWLEDGE
+* CLIENT_ACKNOWLEDGE
+* DUPS_OK_ACKNOWLEDGE
+* SESSION_TRANSACTED
+
+### Receiving a Message Synchronously 
+
+* `context.createConsumer(exampleQueue).receiveBody(String.class, 1000)`
+* if this method is called within a transaction, the JMSConsumer retains (behält) the message until the transaction commits 
+
+Usage of classic API
+
+* `session.createConsumer(...)`
+* `connection.start()` --> `Message m = connection.receive()` (while loop)
+* `TopicConnectionFactory`
+* creation of durable subcribers is possible 
+* `session.createBrowser(inboundQueue)` ~ look at messages without removing them 
+
+### Receiving a Message Asynchronously 
+
+* via MDB 
+
+```Java 
+@MessageDriven(mappedName = "exampleQueue", activationConfig = {
+		@ActivationConfigProperty(propertyName = "destination", propertyValue = "java:/jms/queue/example"),
+		@ActivationConfigProperty(propertyName = "destinationType", propertyValue = "javax.jms.Queue")
+})
+public class MyMessageBean implements MessageListener {
+
+	@Override
+	public void onMessage(Message message) {
+		TextMessage textMessage = (TextMessage) message;
+		try {
+			System.out.println(String.format("%s receives %s", this.getClass().getSimpleName(), textMessage.getText()));
+		} catch (JMSException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+}
+```
+
+### Quality of Service 
+
+* by default *durable publish/producer*
+* but NON_PERSISTENT support `context.createProducer().setDeliveryMode(DeliveryMode.NON_PERSISTENT)`
+* message priority from 0 - 9 default = 4
+* by default message never expires 
+
+### Temporary Destinations 
+
+* `context.createTemporaryQueue()` and `context.createTemporaryTopic()`
+* closed an lost when the connection is lost but their is a delete method as well 
+* JMS 1.1 : `session.createTemporaryQueue()` and `session.createTemporaryTopic()`
+
+## Batch Processing 
+
+* [Batch-Docu](https://docs.oracle.com/javaee/7/tutorial/batch-processing004.html)
+
+### Chunk-Oriented Processing 
+
+* Reader ~ ItemReader and AbstractItemReader
+* Processor ~ ItemProcessor 
+* Writer ~ ItemWriter and AbstractItemWriter, `writeItems(List list)`
+
+```XML
+<job id="myJob" ...
+	<step id="myStep">
+		<chunk item-count="3">
+			<reader ref="myItemReader"/>
+			<processor ref="myItemProcessor"/>
+			<writer ref="myItemWriter"/>
+	
+```
+
+* job may contain any number of steps 
+* chunk ~ defines a chunk type step which is periodically checkpointed
+* default *checkpoint policy* is item which means checkpoint after an number of items (item-count) (default is 10)
+* *checkpoint policy* can have the value *custom* 
+* myItemReader ~ CDI bean (`@Named`)
+* myItemProcessor ~ CDI bean (`@Named`), **optional**
+* myItemWriter ~ CDI bean (`@Named`)
+* job xml is defined and packaged in the `META-INF/batch-jobs` directory 
+* the name of the file has to be the job id --> `myJob.xml`
+
+```Java 
+JobOperator jo = BatchRuntime.getJobOperator();
+long jid = jo.start("myJob", new Properties());
+```
+
+* `jo.restart(jid, props)` ~ restart
+* `jo.abondon(jid)` ~ cancel 
+* `JobExceution je = jo.getJobExceution(jid)` ~  
+* `jo.getCreateTime()` ~  
+* `jo.getStartTime()` ~  
+* `jo.getJobInstanceCount("myJob")` ~ returns the number of instances
+* `Set<String> jobs = jo.getJonNames()` ~ all known job names
+
+### Custom Checkpointing 
+
+* checkpoints enables restart from the last point of consistency 
+
+```XML
+<chunk item-count="3" checkpoint-policy="custom">
+	<reader ref="myItemReader"/>
+	<processor ref="myItemProcessor"/>
+	<writer ref="myItemWriter"/>
+	<checkpoint-algorithm ref="myCheckpointAlgorithm" />
+```
+
+* CDI bean name implementing the `CheckpointAlgorithm` or extending `AbstractCheckpointAlgorithm` (method `isReadyToCheckpoint`)
+
+### Exception Handling 
+
+* by default, if any part of a chunk steps throws an exception the job execution ends with a batch status of FAILED
+* default behavior can be overridden for reader, processor and writer 
+
+```XML
+<chunk item-count="3" ship-limit="3">
+	<reader />
+	<processor />
+	<writer />
+	<skippable-exception-classes>
+		<include class="..." />
+		<exclude class="..." />
+	</skippable-exception-classes>
+	<retryable-exception-classes>
+		<include class="..." />
+	</retryable-exception-classes>
+```
+
+* `SkipReadListener, SkipProcessListener, SkipWriteListener`
+* `RetryReadListener, RetryProcessListener, RetryWriteListener`
+
+### Batchlet Processing 
+
+* roll-your-own batch pattern 
+
+```XML
+<job id="myJob" ...
+	<step id="myStep">
+		<batchlet ref="myBachlet" />
+```
+
+* CDI bean of class a class implementing `Batchlet` (method `process` returns String) 
+
+### Listeners
+
+* `JobListener`
+* `StepListener`
+* `ChunkListener`
+* `ItemReadListener`
+* `ItemProcessListener`
+* `ItemWriteListener`
+* ...
+
+```XML
+<job id="myJob" ...
+	<listeners>
+		<listener ref="myJobListener" />
+	</listeners>
+	<step id="myStep">
+		<listeners>
+			<listener ref="myStepListener" />
+			<listener ref="myChunkListener" />
+			<listener ref="myItemReadListener" />
+			<listener ref="myItemProcessorListener" />
+			<listener ref="myItemWriterListener" />
+		</listeners>
+	</step>
+	<chunk>
+		...
+	</chunk>
+</job>
+```
+
+### Job Sequence
+
+* by default every step is the last step 
+* `next` attribute can be used to define a following step 
+
+### Flow 
+
+* flow defines a sequence of execution elements that execute together as a unit 
+
+```XML
+<job id="myJob" ...
+	<flow id="flow1" next="step3">
+		<step id="step1" next="step2">
+			...
+		</step>
+		<step id="step2">
+		...
+		</step>
+	</flow>
+	<step id="step3">
+		...
+	</step>
+</job>
+```
+
+### Split
+
+* a split execution defines a set of flows that execute concurrently 
+
+```XML
+<job id="myJob" ...
+	<split id="split1" next="step3">
+		<flow id="flow1">
+			<step id="step1">
+				...
+			</step>
+		</flow>
+		<flow id="flow2">
+			<step id="step2">
+				...
+			</step>
+		</flow>
+	</split>
+	<step id="step3">
+		...
+	</step>
+</job>
+```
+
+### Decision 
+
+* customized way of determining sequencing among steps, flows, and splits 
+* four transition elements are defined to direct job execution or to terminate job execution:
+
+* *next* ~ to next element 
+* *fail* ~ causes a job to end with a FAILED
+* *end* ~ causes a job to end with a COMPLETED 
+* *stop* ~ causes a job to end with a STOPPED   
+
+```XML
+<job id="myJob" ...
+	<step id="step1" next="step2">
+		...
+	</step>
+	<decision id="decider1" ref="myDecider">
+		<next on="DATA_LOADED" to="step2" />
+		<end on="NOT_LOADED" />
+	</decision>
+	<step id="step2">
+	...
+	</step>
+</job>
+```
+* implements `Decider` (method `decide(StepExecution[] ses)`)
+
+### Partitioning the Job
+
+* to run on multiple threads 
+* one partition per thread 
+* each partition can have unique parameters and data 
+* partition optional element inside step 
+
+```XML
+<step id="stepE" next="stepF">
+  <chunk>
+    <reader ...></reader>
+    <processor ...></processor>
+    <writer ...></writer>
+  </chunk>
+  <partition>
+    <plan partitions="2" threads="2">
+      <properties partition="0">
+        <property name="firstItem" value="0"/>
+        <property name="lastItem" value="500"/>
+      </properties>
+      <properties partition="1">
+        <property name="firstItem" value="501"/>
+        <property name="lastItem" value="999"/>
+      </properties>
+    </plan>
+  </partition>
+  <reducer ref="MyPartitionReducerImpl"/>
+  <collector ref="MyPartitionCollectorImpl"/>
+  <analyzer ref="MyPartitionAnalyzerImpl"/>
+</step>
+```
+
+```XML
+<step id="stepE" next="stepF">
+  <chunk>
+    <reader ...></reader>
+    <processor ...></processor>
+    <writer ...></writer>
+  </chunk>
+  <partition>
+    <mapper ref="MyPartitionMapperImpl"/>
+    <reducer ref="MyPartitionReducerImpl"/>
+    <collector ref="MyPartitionCollectorImpl"/>
+    <analyzer ref="MyPartitionAnalyzerImpl"/>
+  </partition>
+</step>
+```
