@@ -388,7 +388,8 @@ An server side registration alternative is via the `Application`.
 * serviceName ~ service name of the web service (wsdl:service) 
 * targetNamespace ~ namespace for the web service (targetNamespace)
 * wsdlLocation ~ location of a predefined WSDL describing the service   
-`@WebMethod`
+
+`@WebMethod`
 * can be used to override the defaults 
 * if one method is annotated all other not available at the SEI endpoint 
 * `@WebMethod(operationName='hello')`
@@ -405,7 +406,8 @@ WSDL
 * by default document/literal style 
 * `@SOAPBinding(style = SOAPBinding.Style.RPC)`
 
-### Provider-Based Dynamic Endpoints 
+### Provider-Based Dynamic Endpoints 
+
 * provider based endpoints provides y dynamic alternative to the SEI-based endpoint 
 * the endpoint needs to implement the `Provider<Source>`, `Provider<SOAPMessage>` or `Provider<DataSource>` 
 
@@ -422,10 +424,12 @@ public class MyProvider implements Provider<Source> {
 
 * by default only the message payload 
 
-### Endpoint-Based Endpoints 
+### Endpoint-Based Endpoints 
+
 * lightweight alternative for creating and publishing an endpoint 
 * conventient way of deploying a JAX-WS based web service and point from SE applications 
-
+
+
 ```java 
 @WebService
 public class SimpleWebService {
@@ -443,7 +447,8 @@ Endpoint endpoint = Endpoint.publish("http://localhost:8080/example/SimpleWebSer
 * contract between the web service endpoint and a client is defined through WSDL
 * `@WebServiceClient`
 
-### Dispatch-Based Dynamic Client 
+### Dispatch-Based Dynamic Client 
+
 * dispatch-based endpoint provides a dynamic alternative to the generated proxy-based client
 * the client can be implemented via `Dispatch<Source>, Dispatch<SOAPMeassage>, Dispatch<DataSource>, Dispatch<JAXB Object>`
 
@@ -764,130 +769,935 @@ container.connectToServer(MyClientEndpoint.class, URI.create(uri));
 * Transport guarantee of CONFIDENTIAL only allows wss://
 
 
-sample: Example Using Multiple Java EE 7 Technologies Deployed as an EAR
-==============================================================================================
-Author: Pete Muir
-Level: Intermediate
-Technologies: EAR, JPA
-Summary: Based on kitchensink, but deployed as an EAR
-Target Project: WildFly
-Source: <https://github.com/wildfly/quickstart/>
+## Enterprise Java Beans 
 
-What is it?
------------
+* Session beans 
+* Message 
 
-This is your project! It is a sample, deployable Maven 3 project to help you get your foot in the door developing with Java EE 7 on JBoss WildFly.
+### Stateful Session Beans 
 
-This project is setup to allow you to create a compliant Java EE 7 application using JSF 2.2, CDI 1.1, EJB 3.2, JPA 2.1 and Bean Validation 1.1. It includes a persistence unit and some sample persistence and transaction code to introduce you to database access in enterprise Java.
+* `@Stateful`
+* `@Remove` client can call annotated method to remove the instance from the container 
+* no-interface view ~ bean is onlny locally accessible to clients packaged in the same archive 
+* `@Remote` to access the bean remotely  
+* `@Local` default 
+* if one of the interfaces is marked `@Local` or `@Remote`, the each interface needs to be exposed must be marked explicitly
+* `@PostConstruct` and `@PreDestroy` lifecycle callbacks are available
+* `@PrePassivate` and `@PostActivate`
 
-System requirements
--------------------
+### Stateless Session Beans
 
-All you need to build this project is Java 7.0 (Java SDK 1.7) or better, Maven 3.1 or better.
+* all instances are equivalent, so the container can choose to delegate a client-invoke to any available instance
+* they don't need to be passivated because of no stat
+* `@Statelass`  
+* `@EJB` to inject
+* no-interface, `@Remote` and `@Local` see Stateful Session Beans
+* `@PostConstruct` and `@PreDestroy` are supported 
 
-The application this project produces is designed to be run on JBoss WildFly.
+### Singelton Session Beans 
 
+* `@Singelton`
+* `@Startup` for eager initialization 
+* one instance per application 
+* `@PostConstruct` will be executed before the bean is available 
+* `@DepandsOn` define dependencies between singeltons
+* `@PostConstruct` and `@PreDestroy`
+* by default container managed concurrency 
+* `@Lock(LockType.WRITE)` (exclusive)  is default vs. `@Lock(LockType.READ)` (shared)
+
+### Life-Cycle Event Callbacks
+
+* `@AroundConstruct` ~ only on interceptor class 
+
+```Java
+@MyAroundConstruct
+@Interceptor
+public class MyAroundConstructInterceptor {
+
+
+	@AroundConstruct
+	public void validateConstructor(InvocationContext context) {
+	
+	}
+}
+
+// -->
+
+@MyAroundConstruct
+@Stateful
+public class MyBean {
+
+}
+```
+
+* the `validateConstructor` method is called every time the Beans constructor is called
+* `@PostConstruct` method needs to be executed after dependency injection, only one method can be annotated
+* `@PreDestroy` is called before the instance is removed by the container 
+* `@PrePassivate` only for stateful session beans, may throw system runtime exception but not application exceptions 
+* `@PostActivate` only for stateful session beans, may throw system runtime exception but not application exceptions 
+
+* transaction contexts for life-cycle callbacks: 
+* for a statelass session bean, it executes in an unspecified transaction context 
+* for a statefull session bean, it executes in a transaction context determined by the life-cycle callback method's transaction attribute 
+*  for a singelton session bean, it executes in a transaction context determined by the bean's transaction mamagement type and any applicable transaction attribute   
+
+### Meassage-Driven Beans
+
+* most commonly used to process Java Meassage Service (JMS)
+* `@MeassageDriven(mappedName = "myDestination")`
+* mappedName ~ defines specifies the JNDI name of the JMS destination
+* `MessageListener` Interface with `onMessage` method
+* MDB can not invoked by other session beans 
+* `ActivationConfigProperty` can be set via the `@MeassageDriven`
+
+* `ActivationConfigProperty` properties:
+* achnowledgeMode ~
+* messageSelector ~
+* destinationType ~ Queue or Topic 
+* subscriptionDurabillity ~ if MDB is used with a Topic, specifies whether a durable or nondurable subscription is used. Supported values are Durable or NonDurable.
+* single message-driven bean can process messages from multiple clients concurrently 
+* all operations within the `onMessage` are part of a single transaction 
+* `MessageDrivenContext` provides access to the runtime message-drivem context 
+
+```Java
+@Resource
+MessageDrivenContext mdc;
+```
+
+### Portable Global JNDI Names
+
+* you cam access a ejb using a portable global JNDI name with the following syntax: 
+
+```
+java:global[/<app-name>]/<module-name>/<bean-name>[!<fully-qualified-interface-name]
+```
+
+* app-name ~ only if the session bean is packged with an .ear file 
+* module-name ~ name of the module in whisch the session bean is packaged 
+* bean-name ~ ejb-name 
+
+### Transactions 
+
+* bean-managed transaction vs. container-managed transaction (default)
+* `@TransactionManagement` is used to declare transaction handling (`CONTAINER` (default) vs `BEAN`)
+* bean-managed transaction requires `@TransactionManagement(BEAN)` and the use of `UserTransaction`
+
+```Java
+@Statelass
+@TransactionManagement(BEAN)
+public class AccountSessionBean {
+@Resource
+UserTransaction tx;
+
+	public float deposit() {
+		// ...
+		tx.begin();
+		// ...
+		tx.commit();
+		// ...
+	}
+}
+```
+
+* a sateless session bean using CMT can use `@TransactionAttribute` (REQUIRED = default)
+* `@TransactionAttribute` values an meanings: 
+* MANDATORY ~ without `EJBTransactionRequiredException`
+* REQUIRED ~ default 
+* REQUIRES_NEW ~ always starts a new transaction, if the client calls with a transaction context, then the suspended transaction is resumed after the new transaction has commited 
+* SUPPORTS ~ if the client calls with a transaction context, then it behaves as REQUIRED, if the client without a context it behaves as NOT_SUPPORTED 
+* NOT_SUPPORTED ~ if the client calls with a transaction context, then the container suspends and resumes the association of the transaction context before and after the business method is invoked. If the client calls without a transaction context, then **no new transaction** context is created. 
+* NEVER ~ client is required to call without a transaction context. If not `EJBTransactionRequiredException`. If the client calls without a transaction context, then it behaves as NOT_SUPPORTED.
+
+* only REQUIRED and NOT_SUPPORTED transaction attributes may be used for message-driven beans. A JMS message is delivered to its final destination after the transaction is committed, so the client will not receive the reply within the same transaction.
+
+### Asynchronous Invocation 
+
+* `@Asynchronous` (method or class level)
+
+```Java
+@Statelass
+@Asynchronous
+public class AsyncBean {
+
+	public Future<Integer> add(...) {
+	
+		return new AsyncResult(...);
+	}
+}
+```
+
+### Timers
+
+Time-based events can be scheduled in multiple ways:
+* automatic based upon `@Schedule` and `@Schedules`
+* programmatically using `TimerService`
+* methods marked with `@Timeout`
+* Deployment descriptors 
+
+```Java
+@Singelton
+@StartUp
+public class MyTimer implements TimedObject {
+
+	@Rescource TimerService timerService; 
+	
+	@PostConstruct
+	public void initTimer() {
+		timerService.createCalendarTimer(new ScheduleExpression().hour("*").minute("*").second("*/10"), new TimerConfig("myTimer", true));
+	}
+
+	@Override
+	public void ejbTimeout(Timer timer) {
+		//...
+	}
+}
+```
+
+* When a programmatic timer expires (goes off), the container calls the method annotated @Timeout in the bean’s implementation class. The @Timeout method contains the business logic that handles the timed event.
+* Methods annotated @Timeout in the enterprise bean class must return void and optionally take a javax.ejb.Timer object as the only parameter. They may not throw application exceptions
+
+* timers are not available for stateful session beans 
+* timers are persistent by default `new TimerConfig("myTimer", true)` or `@Schedule(..., persistent="false")`
+
+
+### Embeddable API
+
+```Java
+EJBContainer ejbC = EJBContainer.createEJBContainer();
+Context ctx = ejbC.getContext();
+ctx.lookup(...)
+```
+
+### EJB Lite 
+
+Page 166
+
+## Context and Dependency Injection 
+
+* "strong typing, loose coupling"
+* the injected bean is also called a *contextual instance*
+
+* **bean discovery mode values:**
+* all ~ all types are considered for injection
+* annotated ~ only types with bean-defining annotations
+* none ~ disable cdi
+
+* beans.xml
+* implicit bean archive is possible 
+* <scan><exclude> to exclude beans / packages 
+* <scan><exclude><if-class-available name="..." /> vs <scan><exclude><if-class-not-available name="..." /> vs. <scan><exclude><if-system-property name="..." value="" />
+* `@Vetoed` to prevent  from injection (packages as well)
+
+### Injection Points 
+
+* field, method, or constructor (at most one, has to be public)
+* bean initialization sequence:
+* default constructor or the one annotated with `@Inject`
+* all fields with `@Inject`
+* all methods with `@Inject`
+* the `@PostConstruct` method, if any
+
+### Qualifier and Alternative 
+
+* custom annotation based on `@Qualifier`
+* usage for example: `@Inject @Fancy Greeting gretting`
+* build in CDI qualifiers:
+* `@Named` ~ string based, required for usage in EL
+* `@Default` ~ default qualifier on all beans **without an explicit qualifier**, except `@Named`
+* `@Any` ~ default qualifier on all beans except `@New` 
+* `@New` ~ allows the application to obtain a new instance independent of the declared scope; deprecated in CDI 1.1; and injecting @Dependent scoped beans is encouraged instead 
+* use of `@Named` not recommended 
+* `@Alternative` unavailable for injection, need to explicit enable them (beans.xml) 
+
+
+### Poducer and Disposer
+
+* `@Inject` and `@Qualifier` provide static injection of a bean ...
+* `@Produces` ~ factory like creation 
+* `@Disposes` ~ for explicit destruction 
+
+### Interceptors 
+
+* `@InterceptorBinding` for example Logging annotation 
+* `@Interceptor`
+* by default all interceptors are disabled 
+* need to be enabled and ordered via `@Priority`
+* can be enabled in the beans.xml as well; invoked in the order in which they are specified inside the <interceptors> element
+
+```Java
+@Interceptor
+@Logging // custom annotation
+public class LoggingInterceptor {
+	@AroundInvoke
+	public Object log(InvocationContext context) throws Exception {
+	
+	}
+}
+```
+
+### Decoraters
+
+* used to implement business concerns 
+* `@Decorator` implements the bean it decorates 
+* disabled by default 
+* need to be enabled and ordered via `@Priority`
+* can be enabled in the beans.xml as well <decoraters> 
+* decoraters enabled via `@Priority` called before beans.xml
+* interceptor for a method is called before the decorater for this method
+
+### Scopes and Contexts
+
+* a bean is said to be in a scope and is associated with a context
+* predefined scopes in CDI:
+* `@RequestScoped`
+* `@SessionScoped`
+* `@ApplicationScoped`
+* `@ConversationScoped`
+* `@Dependent` ~ dependent pseudoscope
+
+* `@Contextual, @ContextualContext, and @Contex` can be used to create a custom scope
+
+### Sterotypes
+
+* a stereotye encapsulates *architectural patterns or common metadata*
+* encapsulates scope, interceptor bindings, qualifiers 
+* meta-annotation annotated with `@Sterotype` 
+* declare at most one scope 
+* zero to multiple interceptors
+* adding `@Alternative` is allowed 
+* `@Decorator`, `@Interceptor` and `@Model` are predefined sterotypes
+
+### Events 
+
+* producers raise events 
+* consumed by obsevers 
+
+```Java
+@Inject @Any @Added Event<Customer> event; 
+
+void onCustomer(@Observers @Added Customer event) {
+
+}
+```
+* `@Observers(notifyObserves = Reception.IF_EXISTS)` ~ to prevent creation if not exists 
+* `@Observers(during = TransactionPhase.AFTER_SUCCESS)` 
+
+### Portable Extensions 
+
+* CDI exposes an Service Provider Intercae (SPI) allowing portable extensions to extend the functionally of the container. 
+* implements `Extention`
+* can listen to a verity of container life-cycle events
+
+### Built-in Beans
+* `@Inject UserTransaction` (JEE container)
+* `@Inject Principal` (JEE container)
+* `@Inject HttpServletRequest` (Servlet container)
+* `@Inject HttpSession` (Servlet container)
+* `@Inject ServletContext` (Servlet container)
+
+## Concurrency Utilities 
+
+### Asynchronous Tasks 
+
+* `javax.enterprise.concurrent.MangedExecutorService` instead of `java.util.concurrent.ExecutorService`
+* JNDI lookup "java:comp/DefaultMangedExecutorService"
+* unit of work by the implementation of `Runnable` or `Callable`
+* a Callable task can return a result, whereas a Runnable task does not 
+* a Callable task can throw checked exceptions, whereas a Runnable task cannot
+* submit task instances to a MangedExecutorService using any of the `sumit (Callable), execute (Runnable), invokeAll, invokeAny` method
+* a task runs within the application component context that submitted the task
+* the security context is propagated to the tasks 
+* the transaction context is not propagated to the tasks
+* interface `ManagedTask` provides notification about life-cycle events 
+* interface `ManagedTaskListener` to receive life-cycle events
+
+### Schedule Task  
+
+* `javax.enterprise.concurrent.MangedExecutorService` provides a managed version of `ScheduledExecutorService`
+* `ScheduledExecutorService` can be used to schedule tasks 
+* JNDI lookup "java:comp/DefaultMangedScheduledExecutorService"
+* methods `submit, execute, invokeAll, invokeAny, schedule, scheduleAtFixedRate, scheduleWithFixedDelay`
+* `ScheduledFuture`
+
+### Managed Threads 
+
+* `javax.enterprise.concurrent.ManagedThreadFactory` can be used to create managed threads for execution in a JEE environment 
+* JNDI lookup "java:comp/DefaultMangedThreadFactory"
+* `factory.newThread(new MyTask())` ~ thread creation 
+* --> `thread.start()`
+
+### Dynamic Contextual Object 
+
+* `ContextService`
+* JNDI lookup "java:comp/DefaultContextService"
+* `createContextualProxy` method to create a contextual object proxy 
+
+## Bean Validation 
+
+* annotation and xml (META-INF/validation.xml)
+
+### Built-in Constraints 
+
+* defined in the javax.validation.constraints package
+* `@Size` ~ String, Collection, Map and Array are supported types 
+* `@Digits`
+* each constraint declaration can also override the `message, group, and payload` fields
+* `payload` ~ is used to associate meta data 
+* `validationAppliesTo` new in JEE7
+
+### Defining a Custom Constraint 
+
+* defining a annotation `@Constraint(validateBy=ZipCodeValidator.class)`
+* implement `ConstraintValidator` interface with two methods (`initialize, and isValid(String value, ConstraintValidatorContext context)`)
+* if a bean X contains a field of type Y, by default, the validation of type X does nor trigger the validation of type Y
+* the validation of Y can achieved with `@Valid`
+* `@Valid` provides polymorphic validation 
+
+### Validation Groups
+
+* by default all validation groups are executed in no particular order 
+* a constrain may be defined in an explicitly created validation group in order to perform partial validation of the bean or control the order 
+* a validation group is defined as an interface 
+* `@ZipCode(groups=ZipCodeGroup.class)` --> excludes default group
+* `@ZipCode(groups={Default.class,ZipCodeGroup.class})`
+* groups can inherit other groups through interface inheritance 
+* partial validation can be achieved by multiple groups 
+* the validationGroup can be passed to jsf 
+
+```Xml
+<h:inputText value="#{person.name}" id="name">
+	<f:validateBean validationGroups="org.sample.Page1Group" />
+</h:inputText>
+```
+* `@GroupSequence`
+
+### Method and Constructor Constraint 
+
+* declared constraints need to be explicitly triggered 
+* cross-parameter constraints can be declared
+* by default only constructors and nongetter methods are validated, this can be changed via `@ValidateExecutable`
+
+## Java Transaction 
+
+### User-Managed Transactions 
+
+* The `UserTransaction` interface enables the application to control transaction boundaries programmatically 
+* Typically used in EJBs with bean-managed transactions (BMT)
+* `@Inject UserTransaction ut` vs. JNDI `java.comp/UserTransaction`
+* `ut.begin() ... ut.commit() ... ut.rollback()`
+* after commit or rollback the thread is no langer associated with a transaction 
+
+### Container-Managed Transactions 
+
+* `@Transactional` to define transaction boundaries on CDI-managed beans, as well as classes defined as managed beans 
+* class and method level 
+* life-cycle methods are invoked in an unspecified transaction context unlass the method is annotated explicitly with `@Transactional` the `TxType` element of the annotation provides the semantic quivalent of the transaction attributes in EB 
+* REQUIRED ~ default
+* REQUIRED_NEW ~
+* MANDATORY ~ outside a transaction `TransactionalException` with nested `TransactionalRequiredException`
+* SUPPORTS ~
+* NOT_SUPPORTED ~
+* NEVER ~ inside a transaction context `TransactionalException` with nested `InvalidTransactionalException`
+* by default checked exceptions do not result in the transactional interceptor marking the transaction for rollback
+* instances of `RuntimeException` and its subclasses do 
+* `rollbackOn` can be used to set Exceptions that cause a rollback 
+* `dontRollbackOn`
+
+### @TransactionScoped
+
+* new CDI scope javax.transaction.TransactionScope ~ defines a bean instances whose life-cycle is scoped to the currentky active JTA transaction
+
+## Java Persistence 
+
+### Entities 
+* no-arg public constructor 
+* `@Entity`
+* ...
+* a undirectional relationship requires the owning side to specify the annotation 
+
+### Persistence Unit, Persistence Context, and Entity Manager 
+
+* entity is managed within a *persistence context*
+* within the context the entity instance is managed by the *entity manager* 
+* the entity manger may be *container-managed* (JEE) vs *application-managed* (SE)
+
+```Java
+@PersitenceContext
+EntityManager em;
+```
+
+* via JNDI `@PersitenceContext(name="persitence/myJNDI")`
+
+```Java
+@PersitenceUnit
+EntityManagerFactory emf;
+
+EntityManager em = emf.createEntityManager();
+```
+
+* entity manager and persitence context are not required to be threadsafe --> servlets (not threadsafe) should use the factory to obtain an entity manager 
+* *persistence unit* is defined by a *persistence.xml*
+* transaction-type JTA means that a JTA data source is provided 
+* JEE7 defines java:comp/DefaultDataSource
+* by default, a container-managed persistence context is scoped to a single transaction --> entities detached at the end of the transaction
+* an *extended persitence context*  for stateful session beans is possible 
+* `@PersitenceContext(type=PersitenceContextType.EXTENDED)` 
+* default `SynchronizedTYPE.SYNCHRONIZED` ~ Context is joined to the current JTA transaction
+* `SynchronizedTYPE.UNSYNCHRONIZED` can be enlisted in a JTA transaction via `EntityManager.joinTransaction`
  
-Configure Maven
----------------
-
-If you have not yet done so, you must [Configure Maven](https://github.com/jboss-developer/jboss-developer-shared-resources/blob/master/guides/CONFIGURE_MAVEN.md) before testing the quickstarts.
-
-
-Start JBoss WildFly with the Web Profile
--------------------------
-
-1. Open a command line and navigate to the root of the JBoss server directory.
-2. The following shows the command line to start the server with the web profile:
-
-        For Linux:   JBOSS_HOME/bin/standalone.sh
-        For Windows: JBOSS_HOME\bin\standalone.bat
-
  
-Build and Deploy the Quickstart
--------------------------
+ ### Schema Generation 
+ 
+ * via properties in the persistence.xml*
+ 
+ ### Create, Read, Update, and Delete Entities 
+ 
+ * jpql 
+ * EntityManager.createNamedXXX
+ * crtieria API (since JPA 2.1 updating and deleting is supported)
+ * native SQL statement  `@SQLResultSetMapping` is used to specify the mapping of the result
+ * `em.persist()`
+ * Named Queries vs dynamic queries
+ * update via em.nerge, jql or criteria (2.1) 
+ * delete via em.remove, jql or criteria (2.1)
+ 
+  ### Entity Listeners
+  * `@PostLoad`
+  * `@PrePersist`
+  * `@PostPersist`
+  * `@PreUpdate`
+  * `@PostUpdate`
+  * `@PreRemove`
+  * `@PostRemove`
+  * callback methods can be public, private, protected, or package-level access (not static or final)
+  
+  ```Java
+@Entity
+@EntityListeners(Listener.class) // place to implement callback methods as well 
+```
 
-_NOTE: The following build command assumes you have configured your Maven user settings. If you have not, you must include Maven setting arguments on the command line. See [Build and Deploy the Quickstarts](https://github.com/jboss-developer/jboss-eap-quickstarts#build-and-deploy-the-quickstarts) for complete instructions and additional options._
+* can be defined using the XML descriptors bundled in META-INF/orm.xml 
+* default entity listeners can be defined by xml
 
-1. Make sure you have started the JBoss Server as described above.
-2. Open a command line and navigate to the root directory of this quickstart.
-3. Type this command to build and deploy the archive:
+### Stored Procedures 
 
-        mvn clean package wildfly:deploy
+* `@NamedStoredProcedureQuery` vs dynamic 
 
-4. This will deploy `target/sample.ear` to the running instance of the server.
+```Java 
+@Entity 
+@NamedStoredProcedureQuery(name="...", produreName="...")
 
+```
 
-Access the application 
----------------------
+* if you do not define the stored procedure via NamedStoredProcedureQuery you must provide the parameter an result information dynamically 
 
-The application will be running at the following URL: <http://localhost:8080/sample-web>.
+### Validating Entities 
 
-1. Enter a name, email address, and Phone nubmer in the input field and click the _Register_ button.
-2. If the data entered is valid, the new member will be registered and added to the _Members_ display list.
-3. If the data is not valid, you must fix the validation errors and try again.
-4. When the registration is successful, you will see a log message in the server console:
+* `validation-mode` element in the persitence.xml
+* by default,all entities in a web application are in the default validation group 
+* default group is targeted in pre-persist and pre-update events 
+* thsi can be overriden by setting validation properties  
 
-        Registering _the_name_you_entered_
+### Transactions and Locking
 
+* default *optimistic concurrency control* ~ anyone can read and update an entity 
+* `@Version` enables optimistic locking (only the persistence provider is permitted to update that field)
+* `OptimsticLockException` has to be handled by the application
+* LockModeType.PESSIMISTIC_WRITE --> DB Lock but limits concurrent access
 
-Undeploy the Archive
---------------------
+### Caching 
 
-1. Make sure you have started the JBoss Server as described above.
-2. Open a command line and navigate to the root directory of this quickstart.
-3. When you are finished testing, type this command to undeploy the archive:
+* first level by entity manager in the persistence context 
+* second level caching by the persistence provider can be enabled by the `shared-cache-mode` in the persistence.xml:
+* ALL ~ all entities ...
+* NONE ~ 
+* ENABLE_SELECTIVE ~ only cached entities marked with `@Cachable(true)`
+* DISABLE_SELECTIVE ~ `@Cachable(false)`
+* UNSPECIFIED ~  persistence provider defaults  
 
-        mvn wildfly:undeploy
+* `emf.getCache()`
+* `cache.contains(Student.class, 1234)`
+* `cache.evict(Student.class, 1234)`
+* `cache.evict(Student.class)`
+* `cache.evictAll()`
 
+## Java Message Service
 
-Run the Arquillian Tests 
--------------------------
+* MOM allows sending and receiving messages between distributed systems
+* JMS ~ MON that allows Java programs to create, send, receive, and read an enterprise messaging systsm's messages
 
-This quickstart provides Arquillian tests. By default, these tests are configured to be skipped as Arquillian tests require the use of a container. 
+JMS defines the following concepts:
+* *JMS provider* ~ implementation of the JMS interfaces 
+* *JMS message* ~ object the contains the data, JMS producer/publisher creates and sends whereas JMS consumer/subscriber receives  
+* *Administered objects* ~ typically refer to `ConnectionFactory` and `Destination` and are identified by a JNDI name, `ConnectionFactory` used to create a connection with the provider, `Destination` is the object used by the client to specify the destination of messages it is sending and the source of messages it is receiving 
 
-_NOTE: The following commands assume you have configured your Maven user settings. If you have not, you must include Maven setting arguments on the command line. See [Run the Arquillian Tests](https://github.com/jboss-developer/jboss-developer-shared-resources/blob/master/guides/RUN_ARQUILLIAN_TESTS.md) for complete instructions and additional options._
+TWO messaging models:
+* *Point-to-Point* (Queue) only on subscriber but one and more publisher
+* *Publish-Subscribe* (Topic) n to m 
 
-1. Make sure you have started the JBoss Server as described above.
-2. Open a command line and navigate to the root directory of this quickstart.
-3. Type the following command to run the test goal with the following profile activated:
+### JMS Messages 
 
-        mvn clean test -Parq-wildfly-remote
+* composed of three parts: 
 
+1. *Header* ~ standard header fields: (JMSDestination, JMSDeliveryMode, JMSMeassageID, JMSTimestamp, JMSCorrelationID, JMSReplyTo, JMSRedelivered, JMSType, JMSExpiration, JMSPriority)
+2. *Properties* ~ optional header fields added by the client
+3. *Body* ~ actual payload of the message, different types of body messages are (`SteamMessage`, `MapMessage`, `TextMessage`, `ObjectMessage`, `ByteMessage`) 
 
-Investigate the Console Output
----------------------
-You should see the following console output when you run the tests:
-
-    Results :
-    Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
-
-
-Investigate the Server Console Output
----------------------
-You should see messages similar to the following:
-
-    INFO  [org.jboss.as.server] (management-handler-thread - 9) JBAS018559: Deployed "test.war"
-    INFO  [jee7.certification.preparation.sample.controller.MemberRegistration] (http--127.0.0.1-8080-2) Registering Jane Doe
-    INFO  [jee7.certification.preparation.sample.test.MemberRegistrationTest] (http--127.0.0.1-8080-2) Jane Doe was persisted with id 1
-    INFO  [org.jboss.weld.deployer] (MSC service thread 1-6) JBAS016009: Stopping weld service for deployment test.war
-    INFO  [org.jboss.as.jpa] (MSC service thread 1-1) JBAS011403: Stopping Persistence Unit Service 'test.war#primary'
-    INFO  [org.hibernate.tool.hbm2ddl.SchemaExport] (MSC service thread 1-1) HHH000227: Running hbm2ddl schema export
-    INFO  [org.hibernate.tool.hbm2ddl.SchemaExport] (MSC service thread 1-1) HHH000230: Schema export complete
-    INFO  [org.jboss.as.connector.subsystems.datasources] (MSC service thread 1-5) JBAS010409: Unbound data source [jboss/datasources/sampleTestDS]
-    INFO  [org.jboss.as.server.deployment] (MSC service thread 1-6) JBAS015877: Stopped deployment test.war in 19ms
-    INFO  [org.jboss.as.server] (management-handler-thread - 10) JBAS018558: Undeployed "test.war"
+### Sending a Message
 
 
-Run the Quickstart in JBoss Developer Studio or Eclipse
--------------------------------------
-You can also start the server and deploy the quickstarts from Eclipse using JBoss tools. For more information, see [Use JBoss Developer Studio or Eclipse to Run the Quickstarts](https://github.com/jboss-developer/jboss-developer-shared-resources/blob/master/guides/USE_JBDS.md) 
+```Java
+/**
+ * Session Bean implementation class MessageSender
+ */
+@Stateless
+@LocalBean
+@JMSDestinationDefinitions({
+	@JMSDestinationDefinition(name = "java:/jms/queue/example", interfaceName = "javax.jms.Queue") })
+public class MessageSender {
 
+	/**
+	 * Default constructor.
+	 */
+	public MessageSender() {
 
-Debug the Application
----------------------
+	}
 
-If you want to debug the source code or look at the Javadocs of any library in the project, run either of the following commands to pull them into your local repository. The IDE should then detect them.
+	@Inject
+	private Logger log;
 
-        mvn dependency:sources
-        mvn dependency:resolve -Dclassifier=javadoc
+	@Inject
+	JMSContext context;
+
+	@Resource(lookup = "java:/jms/queue/example", type = Queue.class)
+	Destination exampleQueue;
+
+	@Schedule(hour = "*", minute = "*", second = "*/30")
+	public void sendMessage() {
+		log.info("sendMessage");
+		context.createProducer().send(exampleQueue, "Hello World");
+	}
+}
+```
+
+* `@JMSDestinationDefinitions`
+* `@JMSDestinationDefinition` ~  * An application may use this annotation to specify a JMS {@code Destination} resource that it requires in its operational  environment. This provides information that can be used at the application's deployment to provision the required resource and allows an application to be deployed into a Java EE environment with more minimal administrative configuration.
+* `JMSContext` ~ combines `Connection` and `Session`, container managed JMSContext is injected via `@Inject` --> context created and closed by the container
+* `JMSConnectionFactory` may be used, predefined factory under `java:comp/DefaultJMSConnectionFactory`
+
+```Java
+@Inject
+@JMSConnectionFactory("jms/myConnectionFactory")
+private JMSContext context;
+```
+
+* `@JMSPasswordCredential`
+* `Destination` ~ encapsulates provider specific address (Topic or Queue may be injected)
+* `JMSProducer` ~ created via `createProducer`
+* `context.createProducer().setAsync(new CompletionListener() {})` ~ default synch sending 
+
+Usage of classic API
+
+* @Resource(mappedName = "java:jboss/DefaultJMSConnectionFactory")
+* @Resource(lookup = "java:/jms/queue/example", type= Queue.class)
+* `createConnection.createSession(false, Session.AUTO_ACKNOWLEDGE);` if the first parameter is true you have to commit the session explicitly  
+
+JMS message acknowledgment modes: 
+* AUTO_ACKNOWLEDGE
+* CLIENT_ACKNOWLEDGE
+* DUPS_OK_ACKNOWLEDGE
+* SESSION_TRANSACTED
+
+### Receiving a Message Synchronously 
+
+* `context.createConsumer(exampleQueue).receiveBody(String.class, 1000)`
+* if this method is called within a transaction, the JMSConsumer retains (behält) the message until the transaction commits 
+
+Usage of classic API
+
+* `session.createConsumer(...)`
+* `connection.start()` --> `Message m = connection.receive()` (while loop)
+* `TopicConnectionFactory`
+* creation of durable subcribers is possible 
+* `session.createBrowser(inboundQueue)` ~ look at messages without removing them 
+
+### Receiving a Message Asynchronously 
+
+* via MDB 
+
+```Java 
+@MessageDriven(mappedName = "exampleQueue", activationConfig = {
+		@ActivationConfigProperty(propertyName = "destination", propertyValue = "java:/jms/queue/example"),
+		@ActivationConfigProperty(propertyName = "destinationType", propertyValue = "javax.jms.Queue")
+})
+public class MyMessageBean implements MessageListener {
+
+	@Override
+	public void onMessage(Message message) {
+		TextMessage textMessage = (TextMessage) message;
+		try {
+			System.out.println(String.format("%s receives %s", this.getClass().getSimpleName(), textMessage.getText()));
+		} catch (JMSException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+}
+```
+
+### Quality of Service 
+
+* by default *durable publish/producer*
+* but NON_PERSISTENT support `context.createProducer().setDeliveryMode(DeliveryMode.NON_PERSISTENT)`
+* message priority from 0 - 9 default = 4
+* by default message never expires 
+
+### Temporary Destinations 
+
+* `context.createTemporaryQueue()` and `context.createTemporaryTopic()`
+* closed an lost when the connection is lost but their is a delete method as well 
+* JMS 1.1 : `session.createTemporaryQueue()` and `session.createTemporaryTopic()`
+
+## Batch Processing 
+
+* [Batch-Docu](https://docs.oracle.com/javaee/7/tutorial/batch-processing004.html)
+
+### Chunk-Oriented Processing 
+
+* Reader ~ ItemReader and AbstractItemReader
+* Processor ~ ItemProcessor 
+* Writer ~ ItemWriter and AbstractItemWriter, `writeItems(List list)`
+
+```XML
+<job id="myJob" ...
+	<step id="myStep">
+		<chunk item-count="3">
+			<reader ref="myItemReader"/>
+			<processor ref="myItemProcessor"/>
+			<writer ref="myItemWriter"/>
+	
+```
+
+* job may contain any number of steps 
+* chunk ~ defines a chunk type step which is periodically checkpointed
+* default *checkpoint policy* is item which means checkpoint after an number of items (item-count) (default is 10)
+* *checkpoint policy* can have the value *custom* 
+* myItemReader ~ CDI bean (`@Named`)
+* myItemProcessor ~ CDI bean (`@Named`), **optional**
+* myItemWriter ~ CDI bean (`@Named`)
+* job xml is defined and packaged in the `META-INF/batch-jobs` directory 
+* the name of the file has to be the job id --> `myJob.xml`
+
+```Java 
+JobOperator jo = BatchRuntime.getJobOperator();
+long jid = jo.start("myJob", new Properties());
+```
+
+* `jo.restart(jid, props)` ~ restart
+* `jo.abondon(jid)` ~ cancel 
+* `JobExceution je = jo.getJobExceution(jid)` ~  
+* `jo.getCreateTime()` ~  
+* `jo.getStartTime()` ~  
+* `jo.getJobInstanceCount("myJob")` ~ returns the number of instances
+* `Set<String> jobs = jo.getJonNames()` ~ all known job names
+
+### Custom Checkpointing 
+
+* checkpoints enables restart from the last point of consistency 
+
+```XML
+<chunk item-count="3" checkpoint-policy="custom">
+	<reader ref="myItemReader"/>
+	<processor ref="myItemProcessor"/>
+	<writer ref="myItemWriter"/>
+	<checkpoint-algorithm ref="myCheckpointAlgorithm" />
+```
+
+* CDI bean name implementing the `CheckpointAlgorithm` or extending `AbstractCheckpointAlgorithm` (method `isReadyToCheckpoint`)
+
+### Exception Handling 
+
+* by default, if any part of a chunk steps throws an exception the job execution ends with a batch status of FAILED
+* default behavior can be overridden for reader, processor and writer 
+
+```XML
+<chunk item-count="3" ship-limit="3">
+	<reader />
+	<processor />
+	<writer />
+	<skippable-exception-classes>
+		<include class="..." />
+		<exclude class="..." />
+	</skippable-exception-classes>
+	<retryable-exception-classes>
+		<include class="..." />
+	</retryable-exception-classes>
+```
+
+* `SkipReadListener, SkipProcessListener, SkipWriteListener`
+* `RetryReadListener, RetryProcessListener, RetryWriteListener`
+
+### Batchlet Processing 
+
+* roll-your-own batch pattern 
+
+```XML
+<job id="myJob" ...
+	<step id="myStep">
+		<batchlet ref="myBachlet" />
+```
+
+* CDI bean of class a class implementing `Batchlet` (method `process` returns String) 
+
+### Listeners
+
+* `JobListener`
+* `StepListener`
+* `ChunkListener`
+* `ItemReadListener`
+* `ItemProcessListener`
+* `ItemWriteListener`
+* ...
+
+```XML
+<job id="myJob" ...
+	<listeners>
+		<listener ref="myJobListener" />
+	</listeners>
+	<step id="myStep">
+		<listeners>
+			<listener ref="myStepListener" />
+			<listener ref="myChunkListener" />
+			<listener ref="myItemReadListener" />
+			<listener ref="myItemProcessorListener" />
+			<listener ref="myItemWriterListener" />
+		</listeners>
+	</step>
+	<chunk>
+		...
+	</chunk>
+</job>
+```
+
+### Job Sequence
+
+* by default every step is the last step 
+* `next` attribute can be used to define a following step 
+
+### Flow 
+
+* flow defines a sequence of execution elements that execute together as a unit 
+
+```XML
+<job id="myJob" ...
+	<flow id="flow1" next="step3">
+		<step id="step1" next="step2">
+			...
+		</step>
+		<step id="step2">
+		...
+		</step>
+	</flow>
+	<step id="step3">
+		...
+	</step>
+</job>
+```
+
+### Split
+
+* a split execution defines a set of flows that execute concurrently 
+
+```XML
+<job id="myJob" ...
+	<split id="split1" next="step3">
+		<flow id="flow1">
+			<step id="step1">
+				...
+			</step>
+		</flow>
+		<flow id="flow2">
+			<step id="step2">
+				...
+			</step>
+		</flow>
+	</split>
+	<step id="step3">
+		...
+	</step>
+</job>
+```
+
+### Decision 
+
+* customized way of determining sequencing among steps, flows, and splits 
+* four transition elements are defined to direct job execution or to terminate job execution:
+
+* *next* ~ to next element 
+* *fail* ~ causes a job to end with a FAILED
+* *end* ~ causes a job to end with a COMPLETED 
+* *stop* ~ causes a job to end with a STOPPED   
+
+```XML
+<job id="myJob" ...
+	<step id="step1" next="step2">
+		...
+	</step>
+	<decision id="decider1" ref="myDecider">
+		<next on="DATA_LOADED" to="step2" />
+		<end on="NOT_LOADED" />
+	</decision>
+	<step id="step2">
+	...
+	</step>
+</job>
+```
+* implements `Decider` (method `decide(StepExecution[] ses)`)
+
+### Partitioning the Job
+
+* to run on multiple threads 
+* one partition per thread 
+* each partition can have unique parameters and data 
+* partition optional element inside step 
+
+```XML
+<step id="stepE" next="stepF">
+  <chunk>
+    <reader ...></reader>
+    <processor ...></processor>
+    <writer ...></writer>
+  </chunk>
+  <partition>
+    <plan partitions="2" threads="2">
+      <properties partition="0">
+        <property name="firstItem" value="0"/>
+        <property name="lastItem" value="500"/>
+      </properties>
+      <properties partition="1">
+        <property name="firstItem" value="501"/>
+        <property name="lastItem" value="999"/>
+      </properties>
+    </plan>
+  </partition>
+  <reducer ref="MyPartitionReducerImpl"/>
+  <collector ref="MyPartitionCollectorImpl"/>
+  <analyzer ref="MyPartitionAnalyzerImpl"/>
+</step>
+```
+
+```XML
+<step id="stepE" next="stepF">
+  <chunk>
+    <reader ...></reader>
+    <processor ...></processor>
+    <writer ...></writer>
+  </chunk>
+  <partition>
+    <mapper ref="MyPartitionMapperImpl"/>
+    <reducer ref="MyPartitionReducerImpl"/>
+    <collector ref="MyPartitionCollectorImpl"/>
+    <analyzer ref="MyPartitionAnalyzerImpl"/>
+  </partition>
+</step>
+```
