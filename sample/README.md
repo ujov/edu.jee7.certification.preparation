@@ -336,6 +336,18 @@ The `<deny-uncovered-http-methods>` can be used used to deny an HTTP methods req
 
 ## JavaServer Faces 
 
+TODO
+
+## JSP
+
+TODO
+
+## Secure JAVA EE 7 Applications
+
+### EJBs
+
+
+
 ## RESTful Web Services 
 
 ### Resouces 
@@ -911,8 +923,8 @@ public class MyBean {
 * the `validateConstructor` method is called every time the Beans constructor is called
 * `@PostConstruct` method needs to be executed after dependency injection, only one method can be annotated
 * `@PreDestroy` is called before the instance is removed by the container 
-* `@PrePassivate` only for stateful session beans, may throw system runtime exception but not application exceptions 
-* `@PostActivate` only for stateful session beans, may throw system runtime exception but not application exceptions 
+* `@PrePassivate` only for stateful session beans, may throw **system runtime exception** but not application exceptions 
+* `@PostActivate` only for stateful session beans, may throw **system runtime exception** but not application exceptions 
 
 * transaction contexts for life-cycle callbacks: 
 * for a statelass session bean, it executes in an unspecified transaction context 
@@ -988,6 +1000,21 @@ UserTransaction tx;
 
 * only REQUIRED and NOT_SUPPORTED transaction attributes may be used for message-driven beans. A JMS message is delivered to its final destination after the transaction is committed, so the client will not receive the reply within the same transaction.
 
+### Session synchronization  
+
+* enables a stateful session bean to be notified of container boundaries 
+
+```Java
+public interface SessionSynchronization {
+
+void afterBegin()
+
+void beforeCompletion()
+
+afterCompletion(boolean committed)
+}
+```
+
 ### Asynchronous Invocation 
 
 * `@Asynchronous` (method or class level)
@@ -1003,6 +1030,8 @@ public class AsyncBean {
 	}
 }
 ```
+
+* `@Asynchronous` has to be in the bean class
 
 ### Timers
 
@@ -1049,6 +1078,60 @@ ctx.lookup(...)
 ### EJB Lite 
 
 Page 166
+
+### Exceptions 
+
+* `@ApplicationException(rollback=true)` ~ rollback default is false
+* by default application exceptions don't cause a CMT to rollback
+* application exception is a exception that ejb client expected to handle 
+* by default all checked exceptions expected of `java.rmi.RemoteException` are assumed to be application exceptions 
+* all exceptions inherited from `java.rmi.RemoteException` or `java.lang.RuntimeException` are system exceptions 
+* system exceptions arem't passed to the client but they are wrapped in an `javax.ejb.EJBException`
+* if the container system exception that isn't caught it still issue a rollback and destroy the bean
+* `java.util.concurrent.ExecutionException` for exceptions in async calls
+
+```Java 
+\\ change default behavior
+@ApplicationException(rollback=true)
+public class MyException extends RuntimeException {
+
+}
+```
+
+### JNDI
+
+* EJBs has only read access to their environment variables  
+
+```Java 
+ctx.rebind("java:comp/env/edu.SomeBean/maxValue", new Integer(100));
+```
+
+### Security 
+
+* `isCallerInRole`
+
+```Java 
+@RolesAllowed("BeanUser")
+     public BigDecimal dollarToYen(BigDecimal dollars) {
+        BigDecimal result = new BigDecimal("0.0");
+        Principal callerPrincipal = ctx.getCallerPrincipal();
+        if (ctx.isCallerInRole("BeanUser")) {
+            result = dollars.multiply(yenRate);
+            return result.setScale(2, BigDecimal.ROUND_UP);
+        }else{
+            return result.setScale(2, BigDecimal.ROUND_UP);
+        }
+      }
+
+```
+
+
+### Packaging 
+
+* ejb-jar.xml
+* The ejb-jar.xml is packaged as WEB-INF/META-INF/ejb-jar.xml
+* The ejb-jar.xml is packaged as WEB-INF/ejb-jar.xml. (**in a war file**)
+* If the EJB classes have appropriate component defining annotations, the classes must be packaged in WEB-INF/ejb/classes or in a jar file WEB-INF/ejb/lib/.
 
 ## Context and Dependency Injection 
 
