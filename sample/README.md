@@ -67,7 +67,7 @@ Sources:
 
 * Describe JSF arcitecture, lifecycle and  navigation
 * Understand JSF syntax and use JSF Tag Libraries
-* Handle localisation and produce messages
+* Handle localization and produce messages
 * Use Expression Language (EL) and interact with CDI beans
 
 ### Secure Java EE 7 Applications
@@ -97,7 +97,7 @@ The lifecycle of a servlet is controlled by the container in which the servlet h
     * Loads the servlet class
     * Creates an instance of the servlet class
     * Initializes the servlet instance by calling the init method (initialization is covered in Creating and Initializing a Servlet)
-* The container invokes the service method, passing request and response objects. Service methods are discussed in Writing Service Methods.
+* The container invokes the `service` method, passing request and response objects. Service methods are discussed in Writing Service Methods.
 
 ### Handling Servlet Lifecycle Events
 
@@ -336,6 +336,116 @@ The `<deny-uncovered-http-methods>` can be used used to deny an HTTP methods req
 
 ## JavaServer Faces 
 
+### Locali
+
+## JSP
+
+[docu](https://www.tutorialspoint.com/jsp/jsp_quick_guide.htm)
+
+### Elements of JSP
+
+#### The Scriptlet
+
+A scriptlet can contain any number of JAVA language statements, variable or method declarations, or expressions that are valid in the page scripting language.
+
+```XML
+<% code fragment %>
+```
+
+```XML
+<html>
+   <head><title>Hello World</title></head>
+   
+   <body>
+      Hello World!<br/>
+      <%
+         out.println("Your IP address is " + request.getRemoteAddr());
+      %>
+   </body>
+</html>
+```
+
+#### JSP Declarations
+
+A declaration declares one or more variables or methods that you can use in Java code later in the JSP file. You must declare the variable or method before you use it in the JSP file.
+
+```XML
+<%! declaration; [ declaration; ]+ ... %>
+```
+
+```XML
+<%! int i = 0; %> 
+<%! int a, b, c; %> 
+<%! Circle a = new Circle(2.0); %> 
+```
+
+#### JSP Expression
+
+A JSP expression element contains a scripting language expression that is evaluated, converted to a String, and inserted where the expression appears in the JSP file.
+
+Because the value of an expression is converted to a String, you can use an expression within a line of text, whether or not it is tagged with HTML, in a JSP file.
+
+The expression element can contain any expression that is valid according to the Java Language Specification but you cannot use a semicolon to end an expression.
+
+```XML
+<%= expression %>
+```
+
+```XML
+<html> 
+   <head><title>A Comment Test</title></head> 
+   
+   <body>
+      <p>Today's date: <%= (new java.util.Date()).toLocaleString()%></p>
+   </body> 
+</html> 
+```
+
+### Taglibs	
+	
+ 
+Note that the value of the uri attribute is just a name that must be mapped somehow with either the actual TLD file or the jar file containing the TLD file.  Even if the value of the uri attribute is an absolute url (beginning with http:// ), the container does not download anything.
+
+Usually, the <taglib> element of web.xml ties the uri given in the jsp page with either the actual TLD file or the jar file containing the TLD file. In this case, <taglib-uri> should be same as the value of the uri attribute of the taglib directive while the <taglib-location> should point to the TLD file or the jar file.
+
+However, a taglib jar file can also specify the URIs in the tag library descriptor for the tag library contains using a <uri> element. If that is the case, you do not have to explicitly specify the <taglib> element in the web.xml. You can import this library in the jsp pages using the following taglib directory:
+<%@ taglib prefix="anyprefix" uri="http://www.xyzcorp.com/htmlLib" %>. Note that the uri must be same as the one given in the tld file.
+
+### Error Handling
+
+* Global Error Page
+
+```XML
+<web-app ...>
+    <error-page>
+        <location>/general-error.html</location>
+    </error-page>
+</web-app>
+```
+
+## Secure JAVA EE 7 Applications
+
+### Servlet
+
+* `HttpServletRequest.getUserPrincipal()`
+
+### EJBs
+
+* `EJBContext.getCallerPrincipal`
+
+### SOAP 
+
+Web Services Security (WS-Security, WSS) is an extension to SOAP to apply security to Web services.
+
+The protocol specifies how integrity and confidentiality can be enforced on messages and allows the communication of various security token formats, such as Security Assertion Markup Language (SAML), Kerberos, and X.509. Its main focus is the use of XML Signature and XML Encryption to provide end-to-end security.
+
+The following summarize the Web service security requirements:
+
+The use of transport security to protect the communication channel between the Web service consumer and Web service provider.
+
+Message-level security to ensure confidentiality by digitally encrypting message parts; integrity using digital signatures; and authentication by requiring username, **X.509, or SAML tokens.**
+
+
 ## RESTful Web Services 
 
 ### Resouces 
@@ -479,6 +589,7 @@ An server side registration alternative is via the `Application`.
 * `@WebFault` may be used to customize the mapping of wsdl:fault in the generated WSDL
 * `@OneWay` no response to the client, the method has to be void 
 * `WebServiceContext` may be injected in an endpoint implementation class  
+* `@WebServiceRef`
 
 WSDL 
 * by default document/literal style 
@@ -911,8 +1022,8 @@ public class MyBean {
 * the `validateConstructor` method is called every time the Beans constructor is called
 * `@PostConstruct` method needs to be executed after dependency injection, only one method can be annotated
 * `@PreDestroy` is called before the instance is removed by the container 
-* `@PrePassivate` only for stateful session beans, may throw system runtime exception but not application exceptions 
-* `@PostActivate` only for stateful session beans, may throw system runtime exception but not application exceptions 
+* `@PrePassivate` only for stateful session beans, may throw **system runtime exception** but not application exceptions 
+* `@PostActivate` only for stateful session beans, may throw **system runtime exception** but not application exceptions 
 
 * transaction contexts for life-cycle callbacks: 
 * for a statelass session bean, it executes in an unspecified transaction context 
@@ -936,6 +1047,7 @@ public class MyBean {
 * single message-driven bean can process messages from multiple clients concurrently 
 * all operations within the `onMessage` are part of a single transaction 
 * `MessageDrivenContext` provides access to the runtime message-drivem context 
+* Only the NOT_SUPPORTED and REQUIRED transaction attributes may be used for message-driven bean message listener methods. The use of the other transaction attributes is not meaningful for message driven bean message listener methods because there is no pre-existing client transaction context (REQUIRES_NEW, SUPPORTS) and no client to handle exceptions (MANDATORY, NEVER).
 
 ```Java
 @Resource
@@ -988,6 +1100,21 @@ UserTransaction tx;
 
 * only REQUIRED and NOT_SUPPORTED transaction attributes may be used for message-driven beans. A JMS message is delivered to its final destination after the transaction is committed, so the client will not receive the reply within the same transaction.
 
+### Session synchronization  
+
+* enables a stateful session bean to be notified of container boundaries 
+
+```Java
+public interface SessionSynchronization {
+
+void afterBegin()
+
+void beforeCompletion()
+
+afterCompletion(boolean committed)
+}
+```
+
 ### Asynchronous Invocation 
 
 * `@Asynchronous` (method or class level)
@@ -1003,6 +1130,8 @@ public class AsyncBean {
 	}
 }
 ```
+
+* `@Asynchronous` has to be in the bean class
 
 ### Timers
 
@@ -1038,6 +1167,8 @@ public class MyTimer implements TimedObject {
 * timers are persistent by default `new TimerConfig("myTimer", true)` or `@Schedule(..., persistent="false")`
 
 
+* `@AccessTimeout`
+
 ### Embeddable API
 
 ```Java
@@ -1048,7 +1179,86 @@ ctx.lookup(...)
 
 ### EJB Lite 
 
+The following technologies are required components of the Web Profile:
+* Servlet 3.1
+* JavaServer Pages (JSP) 2.3
+* Expression Language (EL) 3.0
+* Debugging Support for Other Languages (JSR-45) 1.0
+* Standard Tag Library for JavaServer Pages (JSTL) 1.2
+* JavaServer Faces (JSF) 2.2
+* Java API for RESTful Web Services (JAX-RS) 2.0
+* Java API for WebSocket (WebSocket) 1.0
+* Java API for JSON Processing (JSON-P) 1.0
+* Common Annotations for the Java Platform (JSR-250) 1.2
+* Enterprise JavaBeans (EJB) 3.2 Lite
+* Java Transaction API (JTA) 1.2
+* Java Persistence API (JPA) 2.1
+* Bean Validation 1.1
+* Managed Beans 1.0
+* Interceptors 1.2
+* Contexts and Dependency Injection for the Java EE Platform 1.1
+* Dependency Injection for Java 1.0
+
 Page 166
+
+### Exceptions 
+
+* `@ApplicationException(rollback=true)` ~ rollback default is false
+* by default application exceptions don't cause a CMT to rollback
+* application exception is a exception that ejb client expected to handle 
+* by default all checked exceptions expected of `java.rmi.RemoteException` are assumed to be application exceptions 
+* all exceptions inherited from `java.rmi.RemoteException` or `java.lang.RuntimeException` are system exceptions 
+* system exceptions arem't passed to the client but they are wrapped in an `javax.ejb.EJBException`
+* if the container system exception that isn't caught it still issue a rollback and destroy the bean
+* `java.util.concurrent.ExecutionException` for exceptions in async calls
+
+```Java 
+\\ change default behavior
+@ApplicationException(rollback=true)
+public class MyException extends RuntimeException {
+
+}
+```
+
+### JNDI
+
+* EJBs has only read access to their environment variables  
+
+```Java 
+ctx.rebind("java:comp/env/edu.SomeBean/maxValue", new Integer(100));
+```
+
+### Security 
+
+* `isCallerInRole`
+
+```Java 
+@RolesAllowed("BeanUser")
+     public BigDecimal dollarToYen(BigDecimal dollars) {
+        BigDecimal result = new BigDecimal("0.0");
+        Principal callerPrincipal = ctx.getCallerPrincipal();
+        if (ctx.isCallerInRole("BeanUser")) {
+            result = dollars.multiply(yenRate);
+            return result.setScale(2, BigDecimal.ROUND_UP);
+        }else{
+            return result.setScale(2, BigDecimal.ROUND_UP);
+        }
+      }
+
+```
+
+* `@RunAs`
+
+### Packaging 
+
+* ejb-jar.xml
+* The ejb-jar.xml is packaged as WEB-INF/META-INF/ejb-jar.xml
+* The ejb-jar.xml is packaged as WEB-INF/ejb-jar.xml. (**in a war file**)
+* If the EJB classes have appropriate component defining annotations, the classes must be packaged in WEB-INF/ejb/classes or in a jar file WEB-INF/ejb/lib/.
+
+### EJBContext
+
+[EJBContext](https://docs.oracle.com/javaee/7/api/javax/ejb/EJBContext.html)
 
 ## Context and Dependency Injection 
 
@@ -1074,6 +1284,19 @@ Page 166
 * all fields with `@Inject`
 * all methods with `@Inject`
 * the `@PostConstruct` method, if any
+
+Injectable fields:
+1. are annotated with @Inject.
+2. are not final.
+3. may have any otherwise valid name.
+
+Injectable methods:
+1. are annotated with @Inject.
+2. are not abstract.
+3. do not declare type parameters of their own.
+4. may return a result
+5. may have any otherwise valid name.
+6. accept zero or more dependencies as arguments.
 
 ### Qualifier and Alternative 
 
@@ -1177,7 +1400,7 @@ void onCustomer(@Observers @Added Customer event) {
 
 ### Asynchronous Tasks 
 
-* `javax.enterprise.concurrent.MangedExecutorService` instead of `java.util.concurrent.ExecutorService`
+* `javax.enterprise.concurrent.ManagedExecutorService` instead of `java.util.concurrent.ExecutorService`
 * JNDI lookup "java:comp/DefaultMangedExecutorService"
 * unit of work by the implementation of `Runnable` or `Callable`
 * a Callable task can return a result, whereas a Runnable task does not 
@@ -1481,10 +1704,10 @@ Usage of classic API
 * `createConnection.createSession(false, Session.AUTO_ACKNOWLEDGE);` if the first parameter is true you have to commit the session explicitly  
 
 JMS message acknowledgment modes: 
-* AUTO_ACKNOWLEDGE
-* CLIENT_ACKNOWLEDGE
-* DUPS_OK_ACKNOWLEDGE
-* SESSION_TRANSACTED
+* AUTO_ACKNOWLEDGE ~ With this session mode, the JMSContext's session automatically acknowledges a client's receipt of a message either when the session has successfully returned from a call to {@code receive} or when the message listener the session has called to process the message successfully returns.
+* CLIENT_ACKNOWLEDGE ~ 
+* DUPS_OK_ACKNOWLEDGE ~  This session mode instructs the JMSContext's session to lazily acknowledge the delivery of messages. This is likely to result in the delivery of some duplicate messages if the JMS provider fails, so it should only be used by consumers that can tolerate duplicate messages. Use of this mode can reduce session overhead by minimizing the work the session does to prevent duplicates. 
+* SESSION_TRANSACTED ~ This session mode instructs the JMSContext's session to deliver and consume messages in a local transaction which will be subsequently committed by calling {@code commit} or rolled back by calling {@code rollback}.
 
 ### Receiving a Message Synchronously 
 
@@ -1535,6 +1758,16 @@ public class MyMessageBean implements MessageListener {
 * `context.createTemporaryQueue()` and `context.createTemporaryTopic()`
 * closed an lost when the connection is lost but their is a delete method as well 
 * JMS 1.1 : `session.createTemporaryQueue()` and `session.createTemporaryTopic()`
+
+### ...
+```Java 
+public QueueSession createQueueSession(boolean transacted, int acknowledgeMode) throws JMSException
+```
+Parameters:
+transacted - if true, the session is transacted.
+acknowledgeMode - indicates whether the consumer or the client will acknowledge any messages it receives. This parameter will be ignored if the session is transacted. Legal values are Session.AUTO_ACKNOWLEDGE, Session.CLIENT_ACKNOWLEDGE and Session.DUPS_OK_ACKNOWLEDGE.
+Returns:
+a newly created queue session.
 
 ## Batch Processing 
 
