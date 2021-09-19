@@ -9,32 +9,36 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.annotation.WebFilter;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 
 @WebFilter("/*")
 public class RequestLoggingFilter implements Filter {
 
 	private static final Logger LOG = LogManager.getLogger(RequestLoggingFilter.class);
-	
+
 	@Override
 	public void init(FilterConfig filterConfig) throws ServletException {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
 			throws IOException, ServletException {
 		LOG.info(request);
+		HttpServletRequest httpServletRequest = (HttpServletRequest) request;
+		HttpSession session = httpServletRequest.getSession();
+
 	}
 
 	@Override
 	public void destroy() {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 }

@@ -139,7 +139,8 @@ The lifecycle of a servlet is controlled by the container in which the servlet h
 </tr>
 </table>
 
-Just implement one of the above interfaces with `@WebListner` annotation.  
+* Just implement one of the above interfaces with `@WebListner` annotation. 
+* each class is annotated with `@WebListener`, declared in the `web.xml`, or registered via one of the `ServletContext.addListener` methods
 
 ### WebServlet
 
@@ -333,6 +334,46 @@ So all methods are protected. Servlet 3.1 defines HTTP methods that are not list
 All other methods than GET are protected.
 The `<deny-uncovered-http-methods>` can be used used to deny an HTTP methods request for uncovered HTTP method. 
 
+### Deployment Descriptor  
+
+```xml
+<mime-mapping>
+	<mime-extension>text</mime-extension>
+	<mime-type>text/plain</mime-type>
+<\mime-mapping>
+```
+
+```xml
+<taglib>   <taglib-uri>/mylibrary</taglib-uri>  ( You can use 'mylibrary' in the JSP taglib directive : <%@taglib uri="/mylibrary" prefix="mylib"%> )   <taglib-location>/WEB-INF/tlds/MYLibrary.tld</taglib-location> 	// This is the location of tld file for the tag library. </taglib>
+```
+
+```XML
+   <!-- Log for all URLs ending in ".special" -->
+    <filter-mapping>
+        <filter-name>logSpecial</filter-name>
+        <url-pattern>*.special</url-pattern>
+    </filter-mapping>
+
+    <!-- Log for all URLs that use the "comingsoon" servlet -->
+    <filter-mapping>
+        <filter-name>logSpecial</filter-name>
+        <servlet-name>comingsoon</servlet-name>
+    </filter-mapping>
+```
+
+```XML
+  <error-page>
+        <error-code>500</error-code>
+        <location>/errors/servererror.jsp</location>
+    </error-page>
+```
+
+```XML
+<error-page>
+    <exception-type>com.epractizelabs.web.WebException</exception-type>
+    <location>/ServletErrorPage</location>
+</error-page>
+```
 
 ## JavaServer Faces 
 
@@ -421,6 +462,10 @@ The expression element can contain any expression that is valid according to the
 </html> 
 ```
 
+### Directives
+
+Possible attributes to <%@ page %> directive are: Important ones for the exam: import, isThreadSafe, contentType, isELIgnored, isErrorPage and errorPage
+
 ### Taglibs	
 	
  
@@ -443,6 +488,22 @@ However, a taglib jar file can also specify the URIs in the tag library descript
 </web-app>
 ```
 
+```XML
+<jsp:useBean
+  id="beanInstanceName"
+  scope="page | request | session | application"
+  {
+    class="package.class" |
+    type="package.class" |
+    class="package.class" type="package.class" |
+    beanName="{package.class|<%= expression %>}" type="package.class"
+  } 
+  {
+    /> |
+    > other elements </jsp:useBean>
+  }
+```
+
 ### implicit objects 
 
 * out ~ JspWriter
@@ -460,6 +521,8 @@ However, a taglib jar file can also specify the URIs in the tag library descript
 ### Servlet
 
 * `HttpServletRequest.getUserPrincipal()`
+* Basic, Digest, Form utilizes the concept of a realm?
+* As Digest Authentication is not currently in widespread use, servlet containers are encouraged but not required to support it
 
 ### EJBs
 
@@ -477,6 +540,7 @@ The use of transport security to protect the communication channel between the W
 
 Message-level security to ensure confidentiality by digitally encrypting message parts; integrity using digital signatures; and authentication by requiring username, **X.509, or SAML tokens.**
 
+Web Services Security (WS-Security) specifies **SOAP** security extensions that provide confidentiality using XML Encryption and data integrity using XML Signature. WS-Security also includes profiles that specify how to insert different types of binary and XML security tokens in WS-Security headers for authentication and authorization purposes.
 
 ## RESTful Web Services 
 
@@ -829,6 +893,7 @@ The annotated class must have a public no-arg constructor. The annotation can th
 * decoders ~ optional ordered array of decoders  
 * subprotocols ~ optional ordered array of WebSocket protocols supported by the endpoint
 * configurator ~ optional custom configurator
+* The class must be public, concrete, and have a public no-args constructor. The class may or may not be final, and may or may not have final methods.
 
 `@OnMessage` ~ the message can process text, binary, and pong messages.
 
@@ -1296,6 +1361,7 @@ ctx.rebind("java:comp/env/edu.SomeBean/maxValue", new Integer(100));
 
 * Interceptors are called from the most general level (default) to the most specific level (method)
 * default interceptors require ejb-jar file, only per module 
+* Business method interceptor method invocations occur within the same transaction and security context as the business method for which they are invoked.
 
 ```Java 
 @Interceptor
@@ -1577,6 +1643,17 @@ void onCustomer(@Observers @Added Customer event) {
 * `@Entity`
 * ...
 * a undirectional relationship requires the owning side to specify the annotation 
+
+Requirements for Entity Classes
+
+An entity class must follow these requirements.
+
+* The class must be annotated with the javax.persistence.Entity annotation.
+* The class must have a public or protected, no-argument constructor. The class may have other constructors.
+* The class must not be declared final. No methods or persistent instance variables must be declared final.
+* If an entity instance is passed by value as a detached object, such as through a session bean’s remote business interface, the class must implement the Serializable interface.
+* Entities may extend both entity and non-entity classes, and non-entity classes may extend entity classes.
+* Persistent instance variables must be declared private, protected, or package-private and can be accessed directly only by the entity class’s methods. Clients must access the entity’s state through accessor or business methods.
 
 ### Persistence Unit, Persistence Context, and Entity Manager 
 
