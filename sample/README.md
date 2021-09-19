@@ -139,7 +139,8 @@ The lifecycle of a servlet is controlled by the container in which the servlet h
 </tr>
 </table>
 
-Just implement one of the above interfaces with `@WebListner` annotation.  
+* Just implement one of the above interfaces with `@WebListner` annotation. 
+* each class is annotated with `@WebListener`, declared in the `web.xml`, or registered via one of the `ServletContext.addListener` methods
 
 ### WebServlet
 
@@ -333,10 +334,70 @@ So all methods are protected. Servlet 3.1 defines HTTP methods that are not list
 All other methods than GET are protected.
 The `<deny-uncovered-http-methods>` can be used used to deny an HTTP methods request for uncovered HTTP method. 
 
+### Deployment Descriptor  
+
+```xml
+<mime-mapping>
+	<mime-extension>text</mime-extension>
+	<mime-type>text/plain</mime-type>
+<\mime-mapping>
+```
+
+```xml
+<taglib>   <taglib-uri>/mylibrary</taglib-uri>  ( You can use 'mylibrary' in the JSP taglib directive : <%@taglib uri="/mylibrary" prefix="mylib"%> )   <taglib-location>/WEB-INF/tlds/MYLibrary.tld</taglib-location> 	// This is the location of tld file for the tag library. </taglib>
+```
+
+```XML
+   <!-- Log for all URLs ending in ".special" -->
+    <filter-mapping>
+        <filter-name>logSpecial</filter-name>
+        <url-pattern>*.special</url-pattern>
+    </filter-mapping>
+
+    <!-- Log for all URLs that use the "comingsoon" servlet -->
+    <filter-mapping>
+        <filter-name>logSpecial</filter-name>
+        <servlet-name>comingsoon</servlet-name>
+    </filter-mapping>
+```
+
+```XML
+  <error-page>
+        <error-code>500</error-code>
+        <location>/errors/servererror.jsp</location>
+    </error-page>
+```
+
+```XML
+<error-page>
+    <exception-type>com.epractizelabs.web.WebException</exception-type>
+    <location>/ServletErrorPage</location>
+</error-page>
+```
 
 ## JavaServer Faces 
 
-### Locali
+### Lifecyle
+
+* Restore view ~ for example after a click, `ViewHandler.restoreView`
+* Apply request values ~ `UIComponet.processDecodes`
+* Process validations ~ `UIComponet.processValidators`
+* Update model values ~ `UIComponet.processUpdates`
+* Invoke application ~ listeners 
+* Render response ~ `UIRootView.saveState`
+
+### Navigation Rules 
+
+```XML
+<navigation-rule>
+	<form-view-id>/index.xhtml</form-view-id>
+	<navigation-case>
+		<form-outcome>success</form-outcome>
+		<to-view-id>/login.xhtml</to-view>		
+		<if>#{user.isPremium}</if>		
+	</navigation-case>	
+</navigation-rule>
+```
 
 ## JSP
 
@@ -401,6 +462,10 @@ The expression element can contain any expression that is valid according to the
 </html> 
 ```
 
+### Directives
+
+Possible attributes to <%@ page %> directive are: Important ones for the exam: import, isThreadSafe, contentType, isELIgnored, isErrorPage and errorPage
+
 ### Taglibs	
 	
  
@@ -423,11 +488,41 @@ However, a taglib jar file can also specify the URIs in the tag library descript
 </web-app>
 ```
 
+```XML
+<jsp:useBean
+  id="beanInstanceName"
+  scope="page | request | session | application"
+  {
+    class="package.class" |
+    type="package.class" |
+    class="package.class" type="package.class" |
+    beanName="{package.class|<%= expression %>}" type="package.class"
+  } 
+  {
+    /> |
+    > other elements </jsp:useBean>
+  }
+```
+
+### implicit objects 
+
+* out ~ JspWriter
+* request ~ HttpServletRequest
+* response	~ HttpServletResponse
+* config ~ ServletConfig
+* application ~ ServletContext
+* session ~ HttpSession
+* pageContext ~ PageContext
+* page ~ Object
+* exception	~ Throwable
+
 ## Secure JAVA EE 7 Applications
 
 ### Servlet
 
 * `HttpServletRequest.getUserPrincipal()`
+* Basic, Digest, Form utilizes the concept of a realm?
+* As Digest Authentication is not currently in widespread use, servlet containers are encouraged but not required to support it
 
 ### EJBs
 
@@ -445,6 +540,7 @@ The use of transport security to protect the communication channel between the W
 
 Message-level security to ensure confidentiality by digitally encrypting message parts; integrity using digital signatures; and authentication by requiring username, **X.509, or SAML tokens.**
 
+Web Services Security (WS-Security) specifies **SOAP** security extensions that provide confidentiality using XML Encryption and data integrity using XML Signature. WS-Security also includes profiles that specify how to insert different types of binary and XML security tokens in WS-Security headers for authentication and authorization purposes.
 
 ## RESTful Web Services 
 
@@ -797,6 +893,7 @@ The annotated class must have a public no-arg constructor. The annotation can th
 * decoders ~ optional ordered array of decoders  
 * subprotocols ~ optional ordered array of WebSocket protocols supported by the endpoint
 * configurator ~ optional custom configurator
+* The class must be public, concrete, and have a public no-args constructor. The class may or may not be final, and may or may not have final methods.
 
 `@OnMessage` ~ the message can process text, binary, and pong messages.
 
@@ -977,7 +1074,7 @@ container.connectToServer(MyClientEndpoint.class, URI.create(uri));
 ### Stateless Session Beans
 
 * all instances are equivalent, so the container can choose to delegate a client-invoke to any available instance
-* they don't need to be passivated because of no stat
+* they don't need to be passivated because of no state
 * `@Statelass`  
 * `@EJB` to inject
 * no-interface, `@Remote` and `@Local` see Stateful Session Beans
@@ -989,7 +1086,7 @@ container.connectToServer(MyClientEndpoint.class, URI.create(uri));
 * `@Startup` for eager initialization 
 * one instance per application 
 * `@PostConstruct` will be executed before the bean is available 
-* `@DepandsOn` define dependencies between singeltons
+* `@DependsOn` defines dependencies between singeltons
 * `@PostConstruct` and `@PreDestroy`
 * by default container managed concurrency 
 * `@Lock(LockType.WRITE)` (exclusive)  is default vs. `@Lock(LockType.READ)` (shared)
@@ -1028,11 +1125,11 @@ public class MyBean {
 * transaction contexts for life-cycle callbacks: 
 * for a statelass session bean, it executes in an unspecified transaction context 
 * for a statefull session bean, it executes in a transaction context determined by the life-cycle callback method's transaction attribute 
-*  for a singelton session bean, it executes in a transaction context determined by the bean's transaction mamagement type and any applicable transaction attribute   
+*  for a singelton session bean, it executes in a transaction context determined by the bean's transaction management type and any applicable transaction attribute   
 
-### Meassage-Driven Beans
+### Message-Driven Beans
 
-* most commonly used to process Java Meassage Service (JMS)
+* most commonly used to process Java Message Service (JMS)
 * `@MeassageDriven(mappedName = "myDestination")`
 * mappedName ~ defines specifies the JNDI name of the JMS destination
 * `MessageListener` Interface with `onMessage` method
@@ -1046,7 +1143,7 @@ public class MyBean {
 * subscriptionDurabillity ~ if MDB is used with a Topic, specifies whether a durable or nondurable subscription is used. Supported values are Durable or NonDurable.
 * single message-driven bean can process messages from multiple clients concurrently 
 * all operations within the `onMessage` are part of a single transaction 
-* `MessageDrivenContext` provides access to the runtime message-drivem context 
+* `MessageDrivenContext` provides access to the runtime message-driven context 
 * Only the NOT_SUPPORTED and REQUIRED transaction attributes may be used for message-driven bean message listener methods. The use of the other transaction attributes is not meaningful for message driven bean message listener methods because there is no pre-existing client transaction context (REQUIRES_NEW, SUPPORTS) and no client to handle exceptions (MANDATORY, NEVER).
 
 ```Java
@@ -1056,14 +1153,14 @@ MessageDrivenContext mdc;
 
 ### Portable Global JNDI Names
 
-* you cam access a ejb using a portable global JNDI name with the following syntax: 
+* you can access a ejb using a portable global JNDI name with the following syntax: 
 
 ```
 java:global[/<app-name>]/<module-name>/<bean-name>[!<fully-qualified-interface-name]
 ```
 
-* app-name ~ only if the session bean is packged with an .ear file 
-* module-name ~ name of the module in whisch the session bean is packaged 
+* app-name ~ only if the session bean is packaged with an .ear file 
+* module-name ~ name of the module in which the session bean is packaged 
 * bean-name ~ ejb-name 
 
 ### Transactions 
@@ -1073,7 +1170,7 @@ java:global[/<app-name>]/<module-name>/<bean-name>[!<fully-qualified-interface-n
 * bean-managed transaction requires `@TransactionManagement(BEAN)` and the use of `UserTransaction`
 
 ```Java
-@Statelass
+@Stateless
 @TransactionManagement(BEAN)
 public class AccountSessionBean {
 @Resource
@@ -1089,7 +1186,7 @@ UserTransaction tx;
 }
 ```
 
-* a sateless session bean using CMT can use `@TransactionAttribute` (REQUIRED = default)
+* a stateless session bean using CMT can use `@TransactionAttribute` (REQUIRED = default)
 * `@TransactionAttribute` values an meanings: 
 * MANDATORY ~ without `EJBTransactionRequiredException`
 * REQUIRED ~ default 
@@ -1260,6 +1357,35 @@ ctx.rebind("java:comp/env/edu.SomeBean/maxValue", new Integer(100));
 
 [EJBContext](https://docs.oracle.com/javaee/7/api/javax/ejb/EJBContext.html)
 
+### Interceptors 
+
+* Interceptors are called from the most general level (default) to the most specific level (method)
+* default interceptors require ejb-jar file, only per module 
+* Business method interceptor method invocations occur within the same transaction and security context as the business method for which they are invoked.
+
+```Java 
+@Interceptor
+public class LoggingInterceptor {
+	@AroundInvoke
+	public Object log(InvocationContext ctx) throws Exception {
+		...
+		ctx.proceed();  // process normally 
+	}
+}
+
+@Stateless
+public class OrderBean
+
+	@Interceptor(LoggingInterceptor.class)
+	public Order order(...) {
+	
+	}
+\
+```
+
+* `@ExcludeDefaultInterceptors`
+* `@ExcludeClassInterceptors`
+
 ## Context and Dependency Injection 
 
 * "strong typing, loose coupling"
@@ -1306,6 +1432,7 @@ Injectable methods:
 * `@Named` ~ string based, required for usage in EL
 * `@Default` ~ default qualifier on all beans **without an explicit qualifier**, except `@Named`
 * `@Any` ~ default qualifier on all beans except `@New` 
+* Every bean has the built-in qualifier @Any, even if it does not explicitly declare this qualifier, except for the special @New qualified beans defined in @New qualified beans. If a bean does not explicitly declare a qualifier other than @Named or @Any, the bean has exactly one additional qualifier, of type @Default. This is called the default qualifier.
 * `@New` ~ allows the application to obtain a new instance independent of the declared scope; deprecated in CDI 1.1; and injecting @Dependent scoped beans is encouraged instead 
 * use of `@Named` not recommended 
 * `@Alternative` unavailable for injection, need to explicit enable them (beans.xml) 
@@ -1324,6 +1451,7 @@ Injectable methods:
 * by default all interceptors are disabled 
 * need to be enabled and ordered via `@Priority`
 * can be enabled in the beans.xml as well; invoked in the order in which they are specified inside the <interceptors> element
+* require `META-INF/beans.xml`
 
 ```Java
 @Interceptor
@@ -1515,6 +1643,17 @@ void onCustomer(@Observers @Added Customer event) {
 * `@Entity`
 * ...
 * a undirectional relationship requires the owning side to specify the annotation 
+
+Requirements for Entity Classes
+
+An entity class must follow these requirements.
+
+* The class must be annotated with the javax.persistence.Entity annotation.
+* The class must have a public or protected, no-argument constructor. The class may have other constructors.
+* The class must not be declared final. No methods or persistent instance variables must be declared final.
+* If an entity instance is passed by value as a detached object, such as through a session bean’s remote business interface, the class must implement the Serializable interface.
+* Entities may extend both entity and non-entity classes, and non-entity classes may extend entity classes.
+* Persistent instance variables must be declared private, protected, or package-private and can be accessed directly only by the entity class’s methods. Clients must access the entity’s state through accessor or business methods.
 
 ### Persistence Unit, Persistence Context, and Entity Manager 
 
