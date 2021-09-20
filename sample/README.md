@@ -1070,6 +1070,7 @@ container.connectToServer(MyClientEndpoint.class, URI.create(uri));
 * if one of the interfaces is marked `@Local` or `@Remote`, the each interface needs to be exposed must be marked explicitly
 * `@PostConstruct` and `@PreDestroy` lifecycle callbacks are available
 * `@PrePassivate` and `@PostActivate`
+* `@LocalBean` ~ Designates that a session bean exposes a no-interface view. This annotation is optional if a session bean exposes only a no-interface view. 
 
 ### Stateless Session Beans
 
@@ -1121,6 +1122,7 @@ public class MyBean {
 * `@PreDestroy` is called before the instance is removed by the container 
 * `@PrePassivate` only for stateful session beans, may throw **system runtime exception** but not application exceptions 
 * `@PostActivate` only for stateful session beans, may throw **system runtime exception** but not application exceptions 
+* void <METHOD>() They can have public, private, protected, or package level access.
 
 * transaction contexts for life-cycle callbacks: 
 * for a statelass session bean, it executes in an unspecified transaction context 
@@ -1662,7 +1664,7 @@ An entity class must follow these requirements.
 * the entity manger may be *container-managed* (JEE) vs *application-managed* (SE)
 
 ```Java
-@PersitenceContext
+@PersitenceContext(type=PersistenceContextType.EXTENDED|TRANSACTION)
 EntityManager em;
 ```
 
