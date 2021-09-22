@@ -1119,7 +1119,7 @@ public class MyBean {
 
 * the `validateConstructor` method is called every time the Beans constructor is called
 * `@PostConstruct` method needs to be executed after dependency injection, only one method can be annotated
-* `@PreDestroy` is called before the instance is removed by the container 
+* `@PreDestroy` is called before the instance is removed by the container, it is not called when an instance method throws an exception (MDB) or a method is not called if Timeout occurs when stateful session bean is passivated.
 * `@PrePassivate` only for stateful session beans, may throw **system runtime exception** but not application exceptions 
 * `@PostActivate` only for stateful session beans, may throw **system runtime exception** but not application exceptions 
 * void <METHOD>() They can have public, private, protected, or package level access.
@@ -1842,7 +1842,7 @@ Usage of classic API
 
 * @Resource(mappedName = "java:jboss/DefaultJMSConnectionFactory")
 * @Resource(lookup = "java:/jms/queue/example", type= Queue.class)
-* `createConnection.createSession(false, Session.AUTO_ACKNOWLEDGE);` if the first parameter is true you have to commit the session explicitly  
+* `connection.createSession(false, Session.AUTO_ACKNOWLEDGE);` if the first parameter is true you have to commit the session explicitly  
 
 JMS message acknowledgment modes: 
 * AUTO_ACKNOWLEDGE ~ With this session mode, the JMSContext's session automatically acknowledges a client's receipt of a message either when the session has successfully returned from a call to {@code receive} or when the message listener the session has called to process the message successfully returns.
@@ -1887,6 +1887,18 @@ public class MyMessageBean implements MessageListener {
 }
 ```
 
+* A container may create multiple instances of this bean to service multiple message simultaneously.
+#### `ActivationConfigProperty`:
+
+* acknowledgeMode. This property is used to specify the JMS acknowledgement mode for the message delivery when bean-managed transaction demarcation is used. Its values are Auto_acknowledge or Dups_ok_acknowledge. If this property is not specified, JMS AUTO_ACKNOWLEDGE semantics are assumed.
+* messageSelector. This property is used to specify the JMS message selector to be used in determining which messages a JMS message driven bean is to receive.
+* destinationType. This property is used to specify whether the message driven bean is intended to be used with a queue or a topic. The value must be either javax.jms.Queue or javax.jms.Topic.
+* destinationLookup. This property is used to specify the JMS queue or topic from which a JMS message-driven bean is to receive messages.
+* connectionFactoryLookup. This property is used to specify the JMS connection factory that will be used to connect to the JMS provider from which a JMS message-driven bean is to receive messages.
+* subscriptionDurability. If the message driven bean is intended to be used with a topic, this property may be used to indicate whether a durable or non-durable subscription should be used. The value of this property must be either Durable or NonDurable
+* subscriptionName. This property is used to specify the name of the durable subscription if the message-driven bean is intended to be used with a Topic, and the bean provider has indicated that a durable subscription should be used.
+* clientId. This property is used to specify the JMS client identifier that will be used when connecting to the JMS provider from which a JMS message-driven bean is to receive messages. If this property is not specified then the client identifier will be left unset. 
+
 ### Quality of Service 
 
 * by default *durable publish/producer*
@@ -1899,6 +1911,41 @@ public class MyMessageBean implements MessageListener {
 * `context.createTemporaryQueue()` and `context.createTemporaryTopic()`
 * closed an lost when the connection is lost but their is a delete method as well 
 * JMS 1.1 : `session.createTemporaryQueue()` and `session.createTemporaryTopic()`
+
+### Transactions 
+
+```Java 
+<html>
+@MessageDriven
+@TransactionManagement(TransactionManagementType.BEAN)
+public class BackofficeMessageBean implements MessageListener {
+
+@Resource 
+MessageDrivenContext mctx;
+
+@Resource UserTransaction ut;
+
+public void onMessage(Message message) {
+
+
+Consider the following MDB code ...
+
+@MessageDriven
+@TransactionManagement(TransactionManagementType.BEAN)
+public class BackofficeMessageBean implements MessageListener {
+    
+    @Resource MessageDrivenContext mctx;
+    @Resource UserTransaction ut;
+    
+    public void onMessage(Message message) {
+       try{
+          //... valid code
+         ut.begin();
+       }catch(Exception e){ e.printStackTrace(); }
+    }
+}
+```
+* In such cases where the bean fails to either rollback or commit a transaction, the container throws EJBException only for session beans not for MDBs. *For MDBs, it always rolls back the transaction and discards the instance.*
 
 ### ...
 ```Java 
