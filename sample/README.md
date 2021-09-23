@@ -506,15 +506,17 @@ However, a taglib jar file can also specify the URIs in the tag library descript
 
 ### implicit objects 
 
-* out ~ JspWriter
-* request ~ HttpServletRequest
-* response	~ HttpServletResponse
-* config ~ ServletConfig
-* application ~ ServletContext
-* session ~ HttpSession
-* pageContext ~ PageContext
-* page ~ Object
-* exception	~ Throwable
+* pageScope ~ Scoped variables from page scope
+* requestScope ~ Scoped variables from request scope
+* sessionScope ~ Scoped variables from session scope
+* applicationScope ~ Scoped variables from application scope
+* param ~ Request parameters as strings
+* paramValues ~ Request parameters as collections of strings
+* header ~ HTTP request headers as strings
+* headerValues ~ HTTP request headers as collections of strings
+* initParam ~ Context-initialization parameters
+* cookie ~ Cookie values
+* pageContext ~ The JSP PageContext object for the current page
 
 ## Secure JAVA EE 7 Applications
 
@@ -526,7 +528,19 @@ However, a taglib jar file can also specify the URIs in the tag library descript
 
 ### EJBs
 
-* `EJBContext.getCallerPrincipal`
+#### declarative security 
+
+* `@DeclareRoles` ~ Indicates that the given method or all business methods in the EJB can be accessed by users associated with the list of roles. Only on class level allowed. 
+* `@RolesAllowed` ~ 
+* `@PermitAll` ~
+* `@DenyAll` ~
+* `@RunAs` ~
+
+
+#### programmatic security 
+
+* `EJBContext.getCallerPrincipal` ~ mostly login name 
+* `context.isCallerInRole("role")` 
 
 ### SOAP 
 
@@ -1318,6 +1332,8 @@ public class MyException extends RuntimeException {
 
 }
 ```
+
+* javax.ejb.EJBException extends RuntimeException and is thus a system exception. A system exception always causes a transaction to rollback (if there is a transaction). If there is a transaction, the caller gets javax.ejb.EJBTransactionRolledbackException and if there is no transaction, the caller gets EJBException. A system exception always causes the bean instance that throws the exception to be discarded (if it is not a Singleton bean).  Note that if the business interface is a remote business interface that extends java.rmi.Remote, the javax.transaction.TransactionRolledbackException is thrown to the client, which will receive this exception.  Therefore, in this case, do1() of Bean1 will receive javax.ejb.EJBTransactionRolledbackException because do2() of Bean2 executes within Bean1's transaction.  Note that had the transaction attribute of Bean2 been REQUIRES_NEW, Bean1 would have received EJBException and Bean1's transaction would not have been rolled back because a new transaction would have been started by the container before the invocation of do2().
 
 ### JNDI
 
