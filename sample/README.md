@@ -476,6 +476,109 @@ Usually, the <taglib> element of web.xml ties the uri given in the jsp page with
 However, a taglib jar file can also specify the URIs in the tag library descriptor for the tag library contains using a <uri> element. If that is the case, you do not have to explicitly specify the <taglib> element in the web.xml. You can import this library in the jsp pages using the following taglib directory:
 <%@ taglib prefix="anyprefix" uri="http://www.xyzcorp.com/htmlLib" %>. Note that the uri must be same as the one given in the tld file.
 
+### JSTL core
+
+* `<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>`
+* Tag Summary
+
+* catch	Catches any Throwable that occurs in its body and optionally exposes it.
+* choose	Simple conditional tag that establishes a context for mutually exclusive conditional operations, marked by and
+* if	Simple conditional tag, which evalutes its body if the supplied condition is true and optionally exposes a Boolean scripting variable representing the evaluation of this condition
+* import	Retrieves an absolute or relative URL and exposes its contents to either the page, a String in 'var', or a Reader in 'varReader'.
+* forEach	The basic iteration tag, accepting many different collection types and supporting subsetting and other functionality
+* forTokens	Iterates over tokens, separated by the supplied delimeters
+* out	Like <%= ... >, but for expressions.
+* otherwise	Subtag of that follows tags and runs only if all of the prior conditions evaluated to 'false'
+* param	Adds a parameter to a containing 'import' tag's URL.
+* redirect	Redirects to a new URL.
+* remove	Removes a scoped variable (from a particular scope, if specified).
+* set	Sets the result of an expression evaluation in a 'scope'
+* url	Creates a URL with optional query parameters.
+* when	Subtag of that includes its body if its condition evalutes to 'true'
+
+### JSP - Expression Language (EL)
+
+```XML
+<jsp:setProperty name = "box" property = "perimeter" value = "100"/>
+```
+
+* any value can be a expression `${expr}` 
+
+```XML
+<jsp:setProperty name = "box" property = "perimeter" 
+   value = "${2*box.width+2*box.height}"/>
+```
+
+* You can now include a JSP EL expression in the body of a <jsp:text> tag (or any other tag) with the same ${} syntax you use for attributes. For example −
+
+```XML
+<jsp:text>
+   Box Perimeter is: ${2*box.width + 2*box.height}
+</jsp:text>
+```
+
+* To deactivate the evaluation of EL expressions, we specify the isELIgnored attribute of the page directive as below −
+
+```XML
+<%@ page isELIgnored = "true|false" %>
+```
+
+#### Basic Operators in EL
+
+* **.** ~ Access a bean property or Map entry
+* **[]** ~ Access an array or List element
+* **( )** ~ Group a subexpression to change the evaluation order
+* **+** ~ Addition
+* **-** ~ Subtraction or negation of a value
+* ***** ~ Subtraction or negation of a value
+* **/ or div** ~ Division
+* **% or mod** ~ Modulo (remainder)
+* **== or eq** ~ Test for equality
+* **!= or ne** ~ Test for inequality
+* **< or lt** ~ Test for less than
+* **> or gt** ~ Test for greater than
+* **<= or le** ~ Test for less than or equal
+* **>= or ge** ~ Test for greater than or equal
+* **&& or and** ~ Test for logical AND
+* **|| or or** ~ Test for logical OR
+* **! or not** ~ Unary Boolean complement
+* **empty** ~ Test for empty variable values
+
+#### implicit objects 
+
+* pageScope ~ Scoped variables from page scope
+* requestScope ~ Scoped variables from request scope
+* sessionScope ~ Scoped variables from session scope
+* applicationScope ~ Scoped variables from application scope
+* param ~ Request parameters as strings
+* paramValues ~ Request parameters as collections of strings
+* header ~ HTTP request headers as strings
+* headerValues ~ HTTP request headers as collections of strings
+* initParam ~ Context-initialization parameters
+* cookie ~ Cookie values
+* pageContext ~ The JSP PageContext object for the current page
+
+#### The pageContext Object
+
+The pageContext object gives you access to the pageContext JSP object. Through the pageContext object, you can access the request object. For example, to access the incoming query string for a request, you can use the following expression −
+
+```XML
+${pageContext.request.queryString}
+```
+
+#### The param and paramValues Objects
+
+The param and paramValues objects give you access to the parameter values normally available through the request.getParameter and request.getParameterValues methods.
+
+For example, to access a parameter named order, use the expression ${param.order} or ${param["order"]}.
+
+#### header and headerValues Objects
+
+The header and headerValues objects give you access to the header values normally available through the `request.getHeader` and the `request.getHeaders methods`.
+
+For example, to access a header named user-agent, use the expression `${header.user-agent} or ${header["user-agent"]}`
+.
+
 ### Error Handling
 
 * Global Error Page
@@ -504,19 +607,7 @@ However, a taglib jar file can also specify the URIs in the tag library descript
   }
 ```
 
-### implicit objects 
 
-* pageScope ~ Scoped variables from page scope
-* requestScope ~ Scoped variables from request scope
-* sessionScope ~ Scoped variables from session scope
-* applicationScope ~ Scoped variables from application scope
-* param ~ Request parameters as strings
-* paramValues ~ Request parameters as collections of strings
-* header ~ HTTP request headers as strings
-* headerValues ~ HTTP request headers as collections of strings
-* initParam ~ Context-initialization parameters
-* cookie ~ Cookie values
-* pageContext ~ The JSP PageContext object for the current page
 
 ## Secure JAVA EE 7 Applications
 

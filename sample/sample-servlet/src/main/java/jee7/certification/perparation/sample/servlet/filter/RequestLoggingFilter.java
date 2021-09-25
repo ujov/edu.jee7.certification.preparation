@@ -15,7 +15,7 @@ import javax.servlet.http.HttpSession;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@WebFilter("/*")
+//@WebFilter("/*")
 public class RequestLoggingFilter implements Filter {
 
 	private static final Logger LOG = LogManager.getLogger(RequestLoggingFilter.class);
