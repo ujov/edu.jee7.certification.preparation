@@ -37,6 +37,7 @@
 		<module>sample-json</module>
 		<module>sample-websocket</module>
 		<module>sample-websocket-client</module>
+		<module>sample-jsp</module>
 	</modules>
 
 	<properties>
